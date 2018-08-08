@@ -40,8 +40,14 @@ show columns from customers
 describe customers (alias)
 
 # 查看 select 命令帮助文档
-help show
-# 
+help select
+# 查询非重复行，如查询多列，则要求多列都需要一致时才会去重掉
+select distinct vend_id from products
+# 限制返回行数
+select * from customers limit 0, 2
+select * from customers limit 2 offset 0
+# 完全限定库名和表名
+select customers.cust_name from crashcourse.customers
 ```
 
 灵感
