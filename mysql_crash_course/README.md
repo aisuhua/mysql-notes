@@ -51,6 +51,15 @@ select customers.cust_name from crashcourse.customers
 
 # 排序
 select * from customers order by cust_name asc, cust_id desc
+
+# 范围查询
+select * from products where prod_price between 10 and 20
+select * from products where prod_price >= 10 and prod_price <=20
+
+# 空值检测
+select * from customers where cust_email is null;
+select * from customers where cust_email is not null;
+
 ```
 
 ## 摘录
@@ -69,6 +78,15 @@ select * from customers order by cust_name asc, cust_id desc
 > 在字典（dictionary）排序顺序中，A被视为与a相同，这是MySQL（和大多数数据库管理系统）的默认行为。
 > 但是，许多数据库管理员能够在需要时改变这种行为（如果你的数据库包含大量外语字符，可能必须这样做）。
 > 这里，关键的问题是，如果确实需要改变这种排序顺序，用简单的ORDER BY子句做不到。你必须请求数据库管理员的帮助。
+
+不区分大小写
+
+> MySQL在执行匹配时默认不区分大小写，所以fuses与Fuses匹配。
+
+NULL和不等于
+
+> 在通过过滤选择出不具有特定值的行时，你可能希望返回具有NULL值的行。但是，不行。
+> 因为未知具有特殊的含义，数据库不知道它们是否匹配，所以在匹配过滤或不匹配过滤时不返回它们。
 
 ## 灵感
 
