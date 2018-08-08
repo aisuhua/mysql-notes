@@ -60,6 +60,11 @@ select * from products where prod_price >= 10 and prod_price <=20
 select * from customers where cust_email is null;
 select * from customers where cust_email is not null;
 
+# 逻辑操作符
+select * from products where (vend_id = 1002 or vend_id = 1003) and prod_price >= 10;
+
+# IN操作符
+select * from products where vend_id in(1002, 1003) and prod_price >= 10;
 ```
 
 ## 摘录
@@ -87,6 +92,13 @@ NULL和不等于
 
 > 在通过过滤选择出不具有特定值的行时，你可能希望返回具有NULL值的行。但是，不行。
 > 因为未知具有特殊的含义，数据库不知道它们是否匹配，所以在匹配过滤或不匹配过滤时不返回它们。
+
+IN操作符
+
+- 在使用长的合法选项清单时，IN操作符的语法更清楚且更直观。
+- 在使用IN时，计算的次序更容易管理（因为使用的操作符更少）。
+- IN操作符一般比OR操作符清单执行更快。
+- IN的最大优点是可以包含其他SELECT语句，使得能够更动态地建立WHERE子句。第14章将对此进行详细介绍。
 
 ## 灵感
 
