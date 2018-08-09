@@ -175,6 +175,8 @@ REGEXP正在表达式
 
 数据处理函数
 
+> 函数没有SQL的可移植性强
+
 - [12.1 Function and Operator Reference](https://dev.mysql.com/doc/refman/5.7/en/func-op-summary-ref.html)
 
 ## 灵感
