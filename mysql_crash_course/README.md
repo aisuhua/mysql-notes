@@ -105,9 +105,10 @@ IN操作符
 
 NOT操作符
 
-> NOT WHERE子句中用来否定后跟条件的关键字。
+> WHERE子句中用来否定后跟条件的关键字。
 > MySQL支持使用NOT对IN、BETWEEN和EXISTS子句取反，这与多数其他DBMS允许使用NOT对各种条件取反有很大的差别。
 
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
+- 如何设定默认字符集？
