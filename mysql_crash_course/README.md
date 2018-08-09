@@ -73,6 +73,27 @@ select * from products where vend_id not in (1002, 1003);
 select * from products where prod_name like "_ ton anvil"
 select * from products where prod_name like "% ton anvil"
 select * from products where prod_name like "%anvil%"
+
+# 正则表达式：regexp
+select * from products where prod_name regexp '1000'
+select * from products where prod_name regexp '.000'
+select * from products where prod_name regexp "JetPack [0-9]+"
+select * from products where prod_name regexp 'JetPack [[:digit:]]+'
+# 匹配字符类
+select * from products where prod_name regexp 'JetPack [[:digit:]]{4}'
+# 与LIKE相等，regexp 只需包含即可，而like是完全匹配
+select * from products where prod_name like '000'
+select * from products where prod_name regexp '^000$'
+# 特殊字符，使用双斜线转义
+select * from vendors where vend_name regexp '\\.'
+select * from products where prod_name regexp '\\([1-5] sticks?\\)'
+# 匹配范围：| 和 -
+select * from products where prod_name regexp '[1-3] ton'
+select * from products where prod_name regexp '(1|2|3) ton'
+# ^ 的否定含义
+select * from products where prod_name regexp '[^1-3] ton'
+# 测试正则表达式
+select 'suhua' regexp '^[a-z]{5}$';
 ```
 
 ## 摘录
@@ -130,6 +151,12 @@ LIKE操作符
 - 不要过度使用通配符。如果其他操作符能达到相同的目的，应该使用其他操作符。
 - 在确实需要使用通配符时，除非绝对有必要，否则不要把它们用在搜索模式的开始处。把通配符置于搜索模式的开始处，搜索起来是最慢的。
 - 仔细注意通配符的位置。如果放错地方，可能不会返回想要的数据。
+
+REGEXP正在表达式
+
+- 为了匹配反斜杠（\）字符本身，需要使用\\\。
+- 多数正则表达式实现使用单个反斜杠转义特殊字符，以便能使用这些字符本身。但MySQL要求两个反斜杠（MySQL自己解释一个，正则表达式库解释另一个）。
+- ^有两种用法。在集合中（用[和]定义），用它来否定该集合，否则，用来指串的开始处。
 
 ## 灵感
 
