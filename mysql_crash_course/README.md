@@ -98,6 +98,10 @@ select 'suhua' regexp '^[a-z]{5}$';
 # 计算字段，函数
 select concat(rtrim(vend_name), '(', rtrim(vend_address), ')') as vend_title from vendors
 select prod_id, quantity, item_price, (quantity * item_price) as expanded_price from orderitems where order_num = 20005
+# 测试计算字段
+select 1 + 1
+select now()
+select trim(' suhua  ')
 ```
 
 ## 摘录
