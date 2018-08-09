@@ -125,6 +125,39 @@ select avg(distinct prod_price) from products where vend_id = 1003
 select vend_id, count(*) from products group by vend_id
 select vend_id, count(*) as num_prods from products group by vend_id having count(*) >= 2
 select vend_id, count(*) as num_prods from products group by vend_id having num_prods >= 2
+
+# 嵌套查询1：利用子查询进行过滤
+select order_num from orderitems where prod_id = 'TNT2';
+select cust_id  from orders where order_num in (20005, 20007);
+select cust_id, cust_name from customers where cust_id in (10001, 10004);
+# 相当于（嵌套实现）
+select cust_id, cust_name from customers where cust_id in (
+    select cust_id from orders where order_num in (
+        select order_num from orderitems where prod_id = 'TNT2'
+    )
+);
+# 相当于（笛卡尔积实现）
+select distinct customers.cust_id, customers.cust_name
+from orderitems, orders, customers
+where orderitems.order_num = orders.order_num and
+orders.cust_id = customers.cust_id and
+orderitems.prod_id = 'TNT2';
+# 相当于（自然连接实现）
+select customers.cust_id, customers.cust_name
+from orderitems join orders using(order_num) join customers using(cust_id)
+where orderitems.prod_id = 'TNT2'
+
+# 嵌套查询2：作为计算字段使用子查询
+select cust_id, count(*) from orders where cust_id = 10001
+# 相当于（嵌套实现）
+select cust_id, cust_name, (
+    SELECT count(*) from orders where orders.cust_id = customers.cust_id
+) as order_count
+from customers;
+# 相当于（左连接实现）
+select customers.cust_id, customers.cust_name, count(orders.cust_id) as order_count
+from customers left join orders on customers.cust_id = orders.cust_id
+group by customers.cust_id
 ```
 
 ## 摘录
@@ -217,8 +250,16 @@ REGEXP正在表达式
 > 这里有另一种理解方法，WHERE在数据分组前进行过滤，HAVING在数据分组后进行过滤。
 > 这是一个重要的区别，WHERE排除的行不包括在分组中。这可能会改变计算值，从而影响HAVING子句中基于这些值过滤掉的分组。
 
+嵌套查询
+
+> 列必须匹配
+
+> 在WHERE子句中使用子查询（如这里所示），应该保证SELECT语句具有与WHERE子句中相同数目的列。
+> 通常，子查询将返回单个列并且与单个列匹配，但如果需要也可以使用多个列。
+
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
 - 如何设定默认字符集？
 - count(*) 和 count(field) 哪个更快？
+- 笛卡尔积与自然连接的区别？
