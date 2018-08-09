@@ -97,7 +97,7 @@ select 'suhua' regexp '^[a-z]{5}$';
 
 # 计算字段，函数
 select concat(rtrim(vend_name), '(', rtrim(vend_address), ')') as vend_title from vendors
-select prod_id, quantity, item_price, (quantity * item_price) as expanded_price from orderitems where order_num = 20005
+select prod_id, quantity, item_price, (quantity * item_price) as expanded_price from orderitems
 # 测试计算字段
 select 1 + 1
 select now()
@@ -109,6 +109,17 @@ select substr('suhua', 1, 2)
 select locate('suhua', 'suhuazizi')
 select * from orders where date(order_date) = '2005-09-01'
 select * from orders where year(order_date) = 2005 and month(order_date) = 9
+
+# 聚集函数
+select avg(prod_price) from products where vend_id = 1003;
+select count(*) from customers
+select count(cust_email) from customers
+select min(prod_price), max(prod_price) from products
+select sum(quantity * item_price) from orderitems where order_num = 20005
+select count(*), min(prod_price), max(prod_price), avg(prod_price) from products
+
+# distinct 排除重复
+select avg(distinct prod_price) from products where vend_id = 1003
 ```
 
 ## 摘录
@@ -178,6 +189,10 @@ REGEXP正在表达式
 > 函数没有SQL的可移植性强
 
 - [12.1 Function and Operator Reference](https://dev.mysql.com/doc/refman/5.7/en/func-op-summary-ref.html)
+
+聚集函数
+
+
 
 ## 灵感
 
