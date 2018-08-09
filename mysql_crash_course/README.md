@@ -102,6 +102,12 @@ select prod_id, quantity, item_price, (quantity * item_price) as expanded_price 
 select 1 + 1
 select now()
 select trim(' suhua  ')
+
+# 数据处理函数
+select abs(-100)
+select locate('suhua', 'suhuazizi')
+select * from orders where date(order_date) = '2005-09-01'
+select * from orders where year(order_date) = 2005 and month(order_date) = 9
 ```
 
 ## 摘录
@@ -165,6 +171,10 @@ REGEXP正在表达式
 - 为了匹配反斜杠（\）字符本身，需要使用\\\。
 - 多数正则表达式实现使用单个反斜杠转义特殊字符，以便能使用这些字符本身。但MySQL要求两个反斜杠（MySQL自己解释一个，正则表达式库解释另一个）。
 - ^有两种用法。在集合中（用[和]定义），用它来否定该集合，否则，用来指串的开始处。
+
+数据处理函数
+
+- [12.1 Function and Operator Reference](https://dev.mysql.com/doc/refman/5.7/en/func-op-summary-ref.html)
 
 ## 灵感
 
