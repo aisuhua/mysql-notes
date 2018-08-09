@@ -60,7 +60,7 @@ select * from products where prod_price >= 10 and prod_price <=20
 select * from customers where cust_email is null;
 select * from customers where cust_email is not null;
 
-# 逻辑操作符
+# 逻辑操作符：or 和 and
 select * from products where (vend_id = 1002 or vend_id = 1003) and prod_price >= 10;
 
 # IN操作符
