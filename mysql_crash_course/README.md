@@ -120,6 +120,11 @@ select count(*), min(prod_price), max(prod_price), avg(prod_price) from products
 
 # distinct 排除重复
 select avg(distinct prod_price) from products where vend_id = 1003
+
+# 分组数据
+select vend_id, count(*) from products group by vend_id
+select vend_id, count(*) as num_prods from products group by vend_id having count(*) >= 2
+select vend_id, count(*) as num_prods from products group by vend_id having num_prods >= 2
 ```
 
 ## 摘录
@@ -193,7 +198,7 @@ REGEXP正在表达式
 聚集函数
 
 > 除了COUNT()函数外，其他聚集函数都会忽略NULL行。
-> 
+>
 > 如果指定列名，则指定列的值为NULL的行被COUNT()函数忽略，但如果COUNT()函数中用的是星号（*），则不忽略。
 >
 > 如果指定列名，则DISTINCT只能用于COUNT()。
@@ -201,6 +206,16 @@ REGEXP正在表达式
 > 类似地，DISTINCT必须使用列名，不能用于计算或表达式。
 
 - [12.19.1 Aggregate (GROUP BY) Function Descriptions](https://dev.mysql.com/doc/refman/5.7/en/group-by-functions.html)
+
+分组统计
+
+- 除聚集计算语句外，SELECT语句中的每个列都必须在GROUP BY子句中给出。
+- 如果分组列中具有NULL值，则NULL将作为一个分组返回。如果列中有多行NULL值，它们将分为一组。
+
+> HAVING和WHERE的差别
+>
+> 这里有另一种理解方法，WHERE在数据分组前进行过滤，HAVING在数据分组后进行过滤。
+> 这是一个重要的区别，WHERE排除的行不包括在分组中。这可能会改变计算值，从而影响HAVING子句中基于这些值过滤掉的分组。
 
 ## 灵感
 
