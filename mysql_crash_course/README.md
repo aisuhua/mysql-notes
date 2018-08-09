@@ -105,6 +105,7 @@ select trim(' suhua  ')
 
 # 数据处理函数
 select abs(-100)
+select substr('suhua', 1, 2)
 select locate('suhua', 'suhuazizi')
 select * from orders where date(order_date) = '2005-09-01'
 select * from orders where year(order_date) = 2005 and month(order_date) = 9
