@@ -65,6 +65,9 @@ select * from products where (vend_id = 1002 or vend_id = 1003) and prod_price >
 
 # IN操作符
 select * from products where vend_id in(1002, 1003) and prod_price >= 10;
+
+# NOT操作符
+select * from products where vend_id not in (1002, 1003);
 ```
 
 ## 摘录
@@ -99,6 +102,11 @@ IN操作符
 - 在使用IN时，计算的次序更容易管理（因为使用的操作符更少）。
 - IN操作符一般比OR操作符清单执行更快。
 - IN的最大优点是可以包含其他SELECT语句，使得能够更动态地建立WHERE子句。第14章将对此进行详细介绍。
+
+NOT操作符
+
+> NOT WHERE子句中用来否定后跟条件的关键字。
+> MySQL支持使用NOT对IN、BETWEEN和EXISTS子句取反，这与多数其他DBMS允许使用NOT对各种条件取反有很大的差别。
 
 ## 灵感
 
