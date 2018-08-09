@@ -192,9 +192,17 @@ REGEXP正在表达式
 
 聚集函数
 
+> 除了COUNT()函数外，其他聚集函数都会忽略NULL行。
+> 如果指定列名，则指定列的值为NULL的行被COUNT()函数忽略，但如果COUNT()函数中用的是星号（*），则不忽略。
+>
+> 如果指定列名，则DISTINCT只能用于COUNT()。
+> DISTINCT不能用于COUNT(*)，因此不允许使用COUNT（DISTINCT），否则会产生错误。
+> 类似地，DISTINCT必须使用列名，不能用于计算或表达式。
 
+- [12.19.1 Aggregate (GROUP BY) Function Descriptions](https://dev.mysql.com/doc/refman/5.7/en/group-by-functions.html)
 
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
 - 如何设定默认字符集？
+- count(*) 和 count(field) 哪个更快？
