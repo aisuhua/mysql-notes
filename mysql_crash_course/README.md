@@ -68,6 +68,11 @@ select * from products where vend_id in(1002, 1003) and prod_price >= 10;
 
 # NOT操作符
 select * from products where vend_id not in (1002, 1003);
+
+# LIKE操作符，通配符 % 和 _
+select * from products where prod_name like "_ ton anvil"
+select * from products where prod_name like "% ton anvil"
+select * from products where prod_name like "%anvil%"
 ```
 
 ## 摘录
@@ -107,6 +112,24 @@ NOT操作符
 
 > WHERE子句中用来否定后跟条件的关键字。
 > MySQL支持使用NOT对IN、BETWEEN和EXISTS子句取反，这与多数其他DBMS允许使用NOT对各种条件取反有很大的差别。
+
+LIKE操作符
+
+- 通配符（wildcard） 用来匹配值的一部分的特殊字符。
+- 搜索模式（search pattern）① 由字面值、通配符或两者组合构成的搜索条件。
+- 默认不区分大小写，但是可配置。
+
+> 注意尾空格，尾空格可能会干扰通配符匹配。
+> 例如，在保存词anvil 时，如果它后面有一个或多个空格，则子句WHERE prod_name LIKE '%anvil'将不会匹配它们，
+> 因为在最后的l后有多余的字符。解决这个问题的一个简单的办法是在搜索模式最后附加一个%。
+> 一个更好的办法是使用函数（第11章将会介绍）去掉首尾空格。
+>
+> 虽然似乎%通配符可以匹配任何东西，但有一个例外，即NULL。
+> 即使是WHERE prod_name LIKE '%'也不能匹配用值NULL作为产品名的行。
+
+- 不要过度使用通配符。如果其他操作符能达到相同的目的，应该使用其他操作符。
+- 在确实需要使用通配符时，除非绝对有必要，否则不要把它们用在搜索模式的开始处。把通配符置于搜索模式的开始处，搜索起来是最慢的。
+- 仔细注意通配符的位置。如果放错地方，可能不会返回想要的数据。
 
 ## 灵感
 
