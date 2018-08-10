@@ -187,6 +187,21 @@ where p1.vend_id = p2.vend_id and p1.prod_id = 'DTNTR'
 select customers.cust_id, customers.cust_name, count(orders.order_num) as num
 from customers left outer join orders on customers.cust_id = orders.cust_id
 group by customers.cust_id;
+
+# 组合查询
+# 去掉重复行
+select vend_id, prod_id, prod_price from products where prod_price <= 5
+union
+select vend_id, prod_id, prod_price from products where vend_id in (1001, 1002)
+# 保留重复行
+select vend_id, prod_id, prod_price from products where prod_price <= 5
+union all
+select vend_id, prod_id, prod_price from products where vend_id in (1001, 1002)
+# 对组合结果进行排序
+select vend_id, prod_id, prod_price from products where prod_price <= 5
+union
+select vend_id, prod_id, prod_price from products where vend_id in (1001, 1002)
+order by prod_price desc
 ```
 
 ## 摘录
@@ -301,6 +316,12 @@ is incompatible with sql_mode=only_full_group_by
 联接表
 
 - 等值连接又称为内连接。
+
+组合查询
+
+- UNION必须由两条或两条以上的SELECT语句组成，语句之间用关键字UNION分隔（因此，如果组合4条SELECT语句，将要使用3个UNION关键字）。
+- UNION中的每个查询必须包含相同的列、表达式或聚集函数（不过各个列不需要以相同的次序列出）。
+- 列数据类型必须兼容：类型不必完全相同，但必须是DBMS可以隐含地转换的类型（例如，不同的数值类型或不同的日期类型）。
 
 ## 灵感
 
