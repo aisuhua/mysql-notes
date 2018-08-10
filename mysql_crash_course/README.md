@@ -332,3 +332,6 @@ is incompatible with sql_mode=only_full_group_by
 - 笛卡尔积与自然连接的区别？
 - 内连接、自连接、自然连接、外连接？
 - 如何杀死查询时间太长的进程？[1](https://blog.csdn.net/baidu_33615716/article/details/78986799)、[2](https://gist.github.com/paulrosania/2883869)
+- 如何实现字段内容压缩存储？
+- MyISAM 和 InnoDB 的区别？
+- MySQL 的全文搜索（Full Text Search）好用吗？
