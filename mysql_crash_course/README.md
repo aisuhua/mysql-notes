@@ -262,7 +262,7 @@ is incompatible with sql_mode=only_full_group_by
 > 这里有另一种理解方法，WHERE在数据分组前进行过滤，HAVING在数据分组后进行过滤。
 > 这是一个重要的区别，WHERE排除的行不包括在分组中。这可能会改变计算值，从而影响HAVING子句中基于这些值过滤掉的分组。
 
-嵌套查询
+嵌套查询（子查询）
 
 > 列必须匹配
 
