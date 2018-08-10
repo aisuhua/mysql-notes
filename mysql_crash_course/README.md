@@ -164,12 +164,29 @@ from customers left join orders on customers.cust_id = orders.cust_id
 group by customers.cust_id
 
 # 联接表
-# 内连接（等值连接）
+# 内连接（等值连接）：找出每个供应商及其生产的所有商品信息
 select vendors.vend_id, vend_name, products.vend_id, prod_id, prod_name
 from vendors, products where vendors.vend_id = products.vend_id
 # 方式2：inner join
 select vendors.vend_id, vend_name, products.vend_id, prod_id, prod_name
 from vendors inner join products on vendors.vend_id = products.vend_id
+
+# 自连接
+# 子查询实现：找出生产商品ID为DTNTR的供应商所生产的其他商品
+select * from products where vend_id in (select vend_id from products where prod_id = 'DTNTR')
+# 自连接实现2
+select p2.prod_id, p2.prod_name
+from products p1 inner join products p2 on p1.vend_id = p2.vend_id
+where p1.prod_id = 'DTNTR'
+# 自连接实现2
+select p2.prod_id, p2.prod_name
+from products p1, products p2
+where p1.vend_id = p2.vend_id and p1.prod_id = 'DTNTR'
+
+# 连接和聚合运算结合：找出所有客户及每个客户所下的订单数
+select customers.cust_id, customers.cust_name, count(orders.order_num) as num
+from customers left outer join orders on customers.cust_id = orders.cust_id
+group by customers.cust_id;
 ```
 
 ## 摘录
@@ -290,5 +307,7 @@ is incompatible with sql_mode=only_full_group_by
 - 如何修改 auto_increment 当前的自动增量和步长？
 - 如何设定默认字符集？
 - count(*) 和 count(field) 哪个更快？
+- 什么是自然连接？
 - 笛卡尔积与自然连接的区别？
+- 内连接、自连接、自然连接、外连接？
 - 如何杀死查询时间太长的进程？[1](https://blog.csdn.net/baidu_33615716/article/details/78986799)、[2](https://gist.github.com/paulrosania/2883869)
