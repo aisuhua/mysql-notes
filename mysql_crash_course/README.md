@@ -97,7 +97,7 @@ select 'suhua' regexp '^[a-z]{5}$';
 
 # 计算字段，函数
 select concat(rtrim(vend_name), '(', rtrim(vend_address), ')') as vend_title from vendors
-select prod_id, quantity, item_price, (quantity * item_price) as expanded_price from orderitems
+select prod_id, quantity, item_price, sum(quantity * item_price) as expanded_price from orderitems
 # 测试计算字段
 select 1 + 1
 select now()
@@ -245,6 +245,18 @@ REGEXP正在表达式
 - 除聚集计算语句外，SELECT语句中的每个列都必须在GROUP BY子句中给出。
 - 如果分组列中具有NULL值，则NULL将作为一个分组返回。如果列中有多行NULL值，它们将分为一组。
 
+```
+ERROR 1055 (42000): Expression #2 of SELECT list is not in GROUP
+BY clause and contains nonaggregated column 'mydb.t.address' which
+is not functionally dependent on columns in GROUP BY clause; this
+is incompatible with sql_mode=only_full_group_by
+```
+
+> 在分组统计中，select 所选择的字段除了聚集函数外，其余字段必须出现在 group by 分组中。
+> 但是也有例外，如果 group by 的字段是主键或唯一建则 select 所选择字段不做限制。
+
+- [12.19.3 MySQL Handling of GROUP BY](https://dev.mysql.com/doc/refman/5.7/en/group-by-handling.html)
+
 > HAVING和WHERE的差别
 >
 > 这里有另一种理解方法，WHERE在数据分组前进行过滤，HAVING在数据分组后进行过滤。
@@ -263,3 +275,4 @@ REGEXP正在表达式
 - 如何设定默认字符集？
 - count(*) 和 count(field) 哪个更快？
 - 笛卡尔积与自然连接的区别？
+- 如何杀死查询时间太长的进程？[1](https://blog.csdn.net/baidu_33615716/article/details/78986799)、[2](https://gist.github.com/paulrosania/2883869)
