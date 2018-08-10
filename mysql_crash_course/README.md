@@ -142,6 +142,10 @@ from orderitems, orders, customers
 where orderitems.order_num = orders.order_num and
 orders.cust_id = customers.cust_id and
 orderitems.prod_id = 'TNT2';
+# 相当于（内连接实现，跟上面一样，只是写法不同）
+select distinct customers.cust_id, customers.cust_name
+from orderitems inner join orders on orderitems.order_num = orders.order_num
+inner join customers on orders.cust_id = customers.cust_id and orderitems.prod_id = 'TNT2'
 # 相当于（自然连接实现）
 select customers.cust_id, customers.cust_name
 from orderitems join orders using(order_num) join customers using(cust_id)
@@ -158,6 +162,14 @@ from customers;
 select customers.cust_id, customers.cust_name, count(orders.cust_id) as order_count
 from customers left join orders on customers.cust_id = orders.cust_id
 group by customers.cust_id
+
+# 联接表
+# 内连接（等值连接）
+select vendors.vend_id, vend_name, products.vend_id, prod_id, prod_name
+from vendors, products where vendors.vend_id = products.vend_id
+# 方式2：inner join
+select vendors.vend_id, vend_name, products.vend_id, prod_id, prod_name
+from vendors inner join products on vendors.vend_id = products.vend_id
 ```
 
 ## 摘录
@@ -268,6 +280,10 @@ is incompatible with sql_mode=only_full_group_by
 
 > 在WHERE子句中使用子查询（如这里所示），应该保证SELECT语句具有与WHERE子句中相同数目的列。
 > 通常，子查询将返回单个列并且与单个列匹配，但如果需要也可以使用多个列。
+
+联接表
+
+- 等值连接又称为内连接。
 
 ## 灵感
 
