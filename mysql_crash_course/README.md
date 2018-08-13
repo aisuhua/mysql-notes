@@ -458,6 +458,13 @@ is incompatible with sql_mode=only_full_group_by
 
 创建和操纵表
 
+- 用新的列布局创建一个新表；
+- 使用INSERT SELECT语句（关于这条语句的详细介绍，请参阅第19章）从旧表复制数据到新表。如果有必要，可使用转换函数和计算字段；
+- 检验包含所需数据的新表；
+- 重命名旧表（如果确定，可以删除它）；
+- 用旧表原来的名字重命名新表；
+- 根据需要，重新创建触发器、存储过程、索引和外键。
+
 > 覆盖AUTO_INCREMENT： 如果一个列被指定为AUTO_INCREMENT，则它需要使用特殊的值吗？
 > 你可以简单地在INSERT语句中指定一个值，只要它是唯一的（至今尚未使用过）即可，
 > 该值将被用来替代自动生成的值。后续的增量将开始使用该手工插入的值。（相关的例子请参阅本书中使用的表填充脚本。）
@@ -465,15 +472,6 @@ is incompatible with sql_mode=only_full_group_by
 > 确定AUTO_INCREMENT值：让MySQL生成（通过自动增量）主键的一个缺点是你不知道这些值都是谁。
 > 那么，如何在使用AUTO_INCREMENT列时获得这个值呢？可使用last_insert_id()函数获得这个值，如下所示：
 > select last_insert_id() 此语句返回最后一个AUTO_INCREMENT值，然后可以将它用于后续的MySQL语句。
-
-复杂的表结构更改一般需要手动删除过程，它涉及以下步骤：
-
-- 用新的列布局创建一个新表；
-- 使用INSERT SELECT语句（关于这条语句的详细介绍，请参阅第19章）从旧表复制数据到新表。如果有必要，可使用转换函数和计算字段；
-- 检验包含所需数据的新表；
-- 重命名旧表（如果确定，可以删除它）；
-- 用旧表原来的名字重命名新表；
-- 根据需要，重新创建触发器、存储过程、索引和外键。
 
 - [13.1.7 ALTER TABLE Syntax](https://dev.mysql.com/doc/refman/5.6/en/alter-table.html)
 - [13.1.32 RENAME TABLE Syntax](https://dev.mysql.com/doc/refman/5.6/en/rename-table.html)
