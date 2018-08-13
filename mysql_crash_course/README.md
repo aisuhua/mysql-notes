@@ -564,3 +564,4 @@ is incompatible with sql_mode=only_full_group_by
 - 如何在同一条SQL语句里，根据不同的条件更新不同的记录？ when than
 - 如何生成分布式ID？
 - 新增字段时，使用after或before指定添加的位置会慢一些吗？
+- char 和 varchar 有什么区别？
