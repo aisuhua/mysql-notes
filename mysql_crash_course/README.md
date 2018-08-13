@@ -233,6 +233,19 @@ select cust_id, cust_name, cust_address from custnew
 # 指定插入语句的优先级
 insert low_priority into custnew values (null, 'xiaozhang', 'Xicun')
 insert high_priority into custnew values (null, 'xiaozhang', 'Xicun')
+
+# 更新数据
+update custnew set cust_address = 'Guangzhou' where cust_id = 10012
+update custnew set cust_address = 'Guangzhou', cust_name = 'suhua' where cust_id = 10012
+# IGNORE 关键字
+update ignore custnew set cust_address = 'Guangzhou', cust_name = 'suhua' where cust_id = 10012
+
+# 删除数据
+delete from custnew where cust_id = 10013
+# 清空整个表
+delete from custnew
+# 更快删除方式：先删表，然后再创建一个新表
+truncate custnew
 ```
 
 ## 摘录
@@ -378,6 +391,24 @@ is incompatible with sql_mode=only_full_group_by
 > INSERT LOW_PRIORITY INTO
 > 顺便说一下，这也适用于下一章介绍的UPDATE和DELETE语句。
 
+更新数据
+
+> IGNORE关键字：如果用UPDATE语句更新多行，并且在更新这些行中的一行或多行时出一个现错误，
+> 则整个UPDATE操作被取消（错误发生前更新的所有行被恢复到它们原来的值）。
+> 为即使是发生错误，也继续进行更新，可使用IGNORE关键字，如下所示：
+> UPDATE IGNORE customers…
+
+删除数据
+
+> 更快的删除：如果想从表中删除所有行，不要使用DELETE。
+> 可使用TRUNCATE TABLE语句，它完成相同的工作，
+> 但速度更快（TRUNCATE实际是删除原来的表并重新创建一个表，而不是逐行删除表中的数据）。
+
+- 除非确实打算更新和删除每一行，否则绝对不要使用不带WHERE子句的UPDATE或DELETE语句。
+- 保证每个表都有主键（如果忘记这个内容，请参阅第15章），尽可能像WHERE子句那样使用它（可以指定各主键、多个值或值的范围）。
+- 在对UPDATE或DELETE语句使用WHERE子句前，应该先用SELECT进行测试，保证它过滤的是正确的记录，以防编写的WHERE子句不正确。
+- 使用强制实施引用完整性的数据库（关于这个内容，请参阅第15章），这样MySQL将不允许删除具有与其他表相关联的数据的行。
+
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
@@ -391,4 +422,5 @@ is incompatible with sql_mode=only_full_group_by
 - MyISAM 和 InnoDB 的区别？
 - MySQL 的全文搜索（Full Text Search）好用吗？
 - 中文字（不带分隔符）的全文搜索可以用吗？
-- 认识 select/insert/update/delete 的完整语法。
+- 认识 select/insert/update/delete 的完整语法；
+- 如何在同一条SQL语句里，根据不同的条件更新不同的记录？ when than
