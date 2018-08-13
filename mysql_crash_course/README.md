@@ -202,6 +202,15 @@ select vend_id, prod_id, prod_price from products where prod_price <= 5
 union
 select vend_id, prod_id, prod_price from products where vend_id in (1001, 1002)
 order by prod_price desc
+
+# 全文本搜索：计算相关性
+select note_text from productnotes where match(note_text) against('rabbit')
+# 查询扩展：with query expansion
+select note_text from productnotes where match(note_text) against('rabbit' with query expansion)
+# 布尔搜索：包含rabbit和bait中的至少一个词
+select note_text from productnotes where match(note_text) against('rabbit bait' in boolean mode)
+# 同时包含词rabbit和bait的行
+select note_text from productnotes where match(note_text) against('+rabbit +bait' in boolean mode)
 ```
 
 ## 摘录
@@ -323,6 +332,15 @@ is incompatible with sql_mode=only_full_group_by
 - UNION中的每个查询必须包含相同的列、表达式或聚集函数（不过各个列不需要以相同的次序列出）。
 - 列数据类型必须兼容：类型不必完全相同，但必须是DBMS可以隐含地转换的类型（例如，不同的数值类型或不同的日期类型）。
 
+全文搜索
+
+- 在索引全文本数据时，短词被忽略且从索引中排除。短词定义为那些具有3个或3个以下字符的词（如果需要，这个数目可以更改）。
+- MySQL带有一个内建的非用词（stopword）列表，这些词在索引全文本数据时总是被忽略。如果需要，可以覆盖这个列表（请参阅MySQL文档以了解如何完成此工作）。
+- 许多词出现的频率很高，搜索它们没有用处（返回太多的结果）。因此，MySQL规定了一条50%规则，如果一个词出现在50%以上的行中，则将它作为一个非用词忽略。50%规则不用于IN BOOLEANMODE。
+- 如果表中的行数少于3行，则全文本搜索不返回结果（因为每个词或者不出现，或者至少出现在50%的行中）。
+- 忽略词中的单引号。例如，don't索引为dont。
+- 不具有词分隔符（包括日语和汉语）的语言不能恰当地返回全文本搜索结果。
+
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
@@ -335,3 +353,4 @@ is incompatible with sql_mode=only_full_group_by
 - 如何实现字段内容压缩存储？
 - MyISAM 和 InnoDB 的区别？
 - MySQL 的全文搜索（Full Text Search）好用吗？
+- 中文字（不带分隔符）的全文搜索可以用吗？
