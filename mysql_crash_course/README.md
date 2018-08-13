@@ -246,6 +246,53 @@ delete from custnew where cust_id = 10013
 delete from custnew
 # 更快的清空方式：先删表，然后再创建一个新表
 truncate custnew
+
+# 创建表
+create table student(
+    id int not null auto_increment,
+    name varchar(20) not null,
+    age int not null default 0,
+    phone char(11) null,
+    address varchar(100) null,
+    primary key (`id`)
+) engine innodb;
+# 当表不存在才创建
+create table if not exists student(
+    id int not null auto_increment,
+    name varchar(20) not null,
+    age int not null default 0,
+    phone char(11) null,
+    address varchar(100) null,
+    primary key (`id`)
+) engine innodb;
+
+# 更新表
+# 添加字段
+alter table student add sex varchar(10)
+alter table student add sex varchar(10) after age
+# 删除字段
+alter table student drop sex
+
+# 添加索引
+alter table student add index name (`name`)
+alter table student add index name (`name`), add index age (`age`)
+# 删除索引
+alter table student drop index name
+# 添加外键
+alter table orders
+add constraint fk_orders_customers
+foreign key(cust_id) references customers(cust_id);
+# 删除外键
+alter table orders drop foreign key fk_orders_customers
+
+# 重命名表
+rename table student to student_new
+
+# 删除表
+drop table student
+
+# 获取最后一条自增ID
+select last_insert_id()
 ```
 
 ## 摘录
@@ -409,6 +456,28 @@ is incompatible with sql_mode=only_full_group_by
 - 在对UPDATE或DELETE语句使用WHERE子句前，应该先用SELECT进行测试，保证它过滤的是正确的记录，以防编写的WHERE子句不正确。
 - 使用强制实施引用完整性的数据库（关于这个内容，请参阅第15章），这样MySQL将不允许删除具有与其他表相关联的数据的行。
 
+创建和操纵表
+
+> 覆盖AUTO_INCREMENT： 如果一个列被指定为AUTO_INCREMENT，则它需要使用特殊的值吗？
+> 你可以简单地在INSERT语句中指定一个值，只要它是唯一的（至今尚未使用过）即可，
+> 该值将被用来替代自动生成的值。后续的增量将开始使用该手工插入的值。（相关的例子请参阅本书中使用的表填充脚本。）
+>
+> 确定AUTO_INCREMENT值：让MySQL生成（通过自动增量）主键的一个缺点是你不知道这些值都是谁。
+> 那么，如何在使用AUTO_INCREMENT列时获得这个值呢？可使用last_insert_id()函数获得这个值，如下所示：
+> select last_insert_id() 此语句返回最后一个AUTO_INCREMENT值，然后可以将它用于后续的MySQL语句。
+
+复杂的表结构更改一般需要手动删除过程，它涉及以下步骤：
+
+- 用新的列布局创建一个新表；
+- 使用INSERT SELECT语句（关于这条语句的详细介绍，请参阅第19章）从旧表复制数据到新表。如果有必要，可使用转换函数和计算字段；
+- 检验包含所需数据的新表；
+- 重命名旧表（如果确定，可以删除它）；
+- 用旧表原来的名字重命名新表；
+- 根据需要，重新创建触发器、存储过程、索引和外键。
+
+- [13.1.7 ALTER TABLE Syntax](https://dev.mysql.com/doc/refman/5.6/en/alter-table.html)
+- [13.1.32 RENAME TABLE Syntax](https://dev.mysql.com/doc/refman/5.6/en/rename-table.html)
+
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
@@ -424,3 +493,5 @@ is incompatible with sql_mode=only_full_group_by
 - 中文字（不带分隔符）的全文搜索可以用吗？
 - 认识 select/insert/update/delete 的完整语法；
 - 如何在同一条SQL语句里，根据不同的条件更新不同的记录？ when than
+- 如何生成分布式ID？
+- 新增字段时，使用after或before指定添加的位置会慢一些吗？
