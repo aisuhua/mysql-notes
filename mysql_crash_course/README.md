@@ -244,7 +244,7 @@ update ignore custnew set cust_address = 'Guangzhou', cust_name = 'suhua' where 
 delete from custnew where cust_id = 10013
 # 清空整个表
 delete from custnew
-# 更快删除方式：先删表，然后再创建一个新表
+# 更快的清空方式：先删表，然后再创建一个新表
 truncate custnew
 ```
 
