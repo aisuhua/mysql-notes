@@ -207,10 +207,12 @@ order by prod_price desc
 select note_text from productnotes where match(note_text) against('rabbit')
 # 查询扩展：with query expansion
 select note_text from productnotes where match(note_text) against('rabbit' with query expansion)
-# 布尔搜索：包含rabbit和bait中的至少一个词
+# 布尔搜索：包含 rabbit 和 bait 中的至少一个词
 select note_text from productnotes where match(note_text) against('rabbit bait' in boolean mode)
-# 同时包含词rabbit和bait的行
+# 同时包含词 rabbit 和 bait 的行
 select note_text from productnotes where match(note_text) against('+rabbit +bait' in boolean mode)
+# 包含词 rabbit，不能包含 bait
+select note_text from productnotes where match(note_text) against('+rabbit -bait' in boolean mode)
 ```
 
 ## 摘录
