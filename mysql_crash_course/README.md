@@ -213,6 +213,26 @@ select note_text from productnotes where match(note_text) against('rabbit bait' 
 select note_text from productnotes where match(note_text) against('+rabbit +bait' in boolean mode)
 # 包含词 rabbit，不能包含 bait
 select note_text from productnotes where match(note_text) against('+rabbit -bait' in boolean mode)
+
+# 插入完整的行
+insert into customers
+values
+(NULL, 'Pep E. LaPew', '100 Main Street', 'Los Angeles', 'CA', '90064', 'USA', NULL, NULL)
+# 插入行的一部分
+insert into customers (cust_name, cust_address, cust_city, cust_state, cust_zip, cust_country)
+values
+('Pep E. LaPew', '100 Main Street', 'Los Angeles', 'CA', '90064', 'USA');
+# 插入多行
+insert into customers (cust_name, cust_address, cust_city, cust_state, cust_zip, cust_country)
+values
+('Pep E. LaPew', '100 Main Street', 'Los Angeles', 'CA', '90064', 'USA'),
+('suhua', 'Guangdong', 'Guangzhou', 'GD', 50123, 'CHINA')
+# 插入检索出的数据：insert select
+insert into customers (cust_id, cust_name, cust_address)
+select cust_id, cust_name, cust_address from custnew
+# 指定插入语句的优先级
+insert low_priority into custnew values (null, 'xiaozhang', 'Xicun')
+insert high_priority into custnew values (null, 'xiaozhang', 'Xicun')
 ```
 
 ## 摘录
@@ -343,6 +363,24 @@ is incompatible with sql_mode=only_full_group_by
 - 忽略词中的单引号。例如，don't索引为dont。
 - 不具有词分隔符（包括日语和汉语）的语言不能恰当地返回全文本搜索结果。
 
+插入数据
+
+- 插入完整的行；
+- 插入行的一部分；
+- 插入多行；
+- 插入某些查询的结果。
+
+> 提高整体性能
+>
+> 数据库经常被多个客户访问，对处理什么请求以及用什么次序处理进行管理是MySQL的任务。
+> INSERT操 作可能很耗时（特别是有很多索引需要更新时），而且它可能降低等待处理的SELECT语句的性能。
+>
+> 如果数据检索是最重要的（通常是这样），则你可以通过在INSERT和INTO之间添加关键字LOW_PRIORITY，指示MySQL降低INSERT语句的优先级，如下所示：
+>
+> INSERT LOW_PRIORITY INTO
+>
+> 顺便说一下，这也适用于下一章介绍的UPDATE和DELETE语句。
+
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
@@ -356,3 +394,4 @@ is incompatible with sql_mode=only_full_group_by
 - MyISAM 和 InnoDB 的区别？
 - MySQL 的全文搜索（Full Text Search）好用吗？
 - 中文字（不带分隔符）的全文搜索可以用吗？
+- 认识 select/insert/update/delete 的完整语法。
