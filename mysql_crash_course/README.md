@@ -293,6 +293,45 @@ drop table student
 
 # 获取最后一条自增ID
 select last_insert_id()
+
+# 视图
+select cust_name, cust_contact, prod_id
+from orderitems as oi
+inner join orders as o on oi.order_num = o.order_num
+inner join customers as c on o.cust_id = c.cust_id and
+where prod_id = 'TNT2'
+# 创建视图
+create view productcustomers as
+select cust_name, cust_contact, prod_id
+from orderitems as oi
+inner join orders as o on oi.order_num = o.order_num
+inner join customers as c on o.cust_id = c.cust_id
+# 使用视图
+select * from productcustomers
+select * from productcustomers where prod_id = 'TNT2'
+
+# 用视图格式化检索出的数据
+create view vendorlocations as
+select concat(rtrim(vend_name), '(', vend_country, ')') as vend_title from vendors order by vend_name
+# 使用视图
+select * from vendorlocations;
+
+# 用视图过滤不想要的数据
+create view customeremailist as
+select cust_id, cust_name, cust_email from customers where cust_email is not null
+# 使用视图
+select * from customeremailist
+
+# 使用视图与计算字段
+create view orderitemsexpanded as
+select order_num, prod_id, quantity, item_price, quantity*item_price as expanded_price from orderitems
+# 使用视图
+select * from orderitemsexpanded where order_num =20005
+
+# 查看视图定义
+show create view orderitemsexpanded
+# 删除视图
+drop view orderitemsexpanded
 ```
 
 ## 摘录
@@ -475,6 +514,38 @@ is incompatible with sql_mode=only_full_group_by
 
 - [13.1.7 ALTER TABLE Syntax](https://dev.mysql.com/doc/refman/5.6/en/alter-table.html)
 - [13.1.32 RENAME TABLE Syntax](https://dev.mysql.com/doc/refman/5.6/en/rename-table.html)
+
+视图
+
+为什么使用视图？
+
+- 重用SQL语句。
+- 简化复杂的SQL操作。在编写查询后，可以方便地重用它而不必知道它的基本查询细节。
+- 使用表的组成部分而不是整个表。
+- 保护数据。可以给用户授予表的特定部分的访问权限而不是整个表的访问权限。
+- 更改数据格式和表示。视图可返回与底层表的表示和格式不同的数据。
+
+视图的规则和限制
+
+- 与表一样，视图必须唯一命名（不能给视图取与别的视图或表相同的名字）。
+- 对于可以创建的视图数目没有限制。
+- 为了创建视图，必须具有足够的访问权限。这些限制通常由数据库管理人员授予。
+- 视图可以嵌套，即可以利用从其他视图中检索数据的查询来构造一个视图。
+- ORDER BY可以用在视图中，但如果从该视图检索数据SELECT中也含有ORDER BY，那么该视图中的ORDER BY将被覆盖。
+- 视图不能索引，也不能有关联的触发器或默认值。
+- 视图可以和表一起使用。例如，编写一条联结表和视图的SELECT语句。
+
+更新视图
+
+> 如果视图定义中有以下操作，则不能进行视图的更新：
+
+- 分组（使用GROUP BY和HAVING）；
+- 联结；
+- 子查询；
+- 并；
+- 聚集函数（Min()、Count()、Sum()等）；
+- DISTINCT；
+- 导出（计算）列。
 
 ## 灵感
 
