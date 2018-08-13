@@ -374,7 +374,6 @@ is incompatible with sql_mode=only_full_group_by
 >
 > 数据库经常被多个客户访问，对处理什么请求以及用什么次序处理进行管理是MySQL的任务。
 > INSERT操 作可能很耗时（特别是有很多索引需要更新时），而且它可能降低等待处理的SELECT语句的性能。
->
 > 如果数据检索是最重要的（通常是这样），则你可以通过在INSERT和INTO之间添加关键字LOW_PRIORITY，指示MySQL降低INSERT语句的优先级，如下所示：
 >
 > INSERT LOW_PRIORITY INTO
