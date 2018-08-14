@@ -695,6 +695,7 @@ is incompatible with sql_mode=only_full_group_by
 - 一旦声明后，必须打开游标以供使用。这个过程用前面定义的SELECT语句把数据实际检索出来。
 - 对于填有数据的游标，根据需要取出（检索）各行。
 - 在结束游标使用时，必须关闭游标。
+- [13.6.6 Cursors](https://dev.mysql.com/doc/refman/5.7/en/cursors.html)
 
 ## 灵感
 
