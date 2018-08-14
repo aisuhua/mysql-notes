@@ -418,6 +418,50 @@ call ordertotal(20005, 0, @total)
 select @total
 call ordertotal(20005, 1, @total)
 select @total
+
+# 游标的使用
+create procedure processorders()
+begin
+
+    -- Declare local variable
+    declare done boolean default 0;
+    declare o int;
+    declare t decimal(8, 2);
+
+    -- Declare the cursor
+    declare ordernumbers cursor for select order_num from orders;
+    -- Declare continue handler
+    declare continue handler for sqlstate '02000' set done = 1;
+
+    -- Create a table to store the results
+    create table if not exists ordertotals(order_num int, total decimal(8, 2));
+
+    -- Open the cursor
+    open ordernumbers;
+
+    -- Loop through all rows
+    repeat
+
+        -- Get the order num
+        fetch ordernumbers into o;
+        -- Get the total for this order
+        call ordertotal(o, 1, t);
+
+        -- Insert the order and total into ordertotals
+        insert into ordertotals(order_num, total) values (o, t);
+
+    -- End the loop
+    until done end repeat;
+
+    -- Close the cursor
+    close ordernumbers;
+
+end|
+
+# 调用存储过程
+call processorders()
+# 查看结果
+select * from ordertotals
 ```
 
 ## 摘录
@@ -645,6 +689,12 @@ is incompatible with sql_mode=only_full_group_by
 - 提高性能。因为使用存储过程比使用单独的SQL语句要快。
 - 存在一些只能用在单个请求中的MySQL元素和特性，存储过程可以使用它们来编写功能更强更灵活的代码。
 
+游标
+
+- 在能够使用游标前，必须声明（定义）它。这个过程实际上没有检索数据，它只是定义要使用的SELECT语句。
+- 一旦声明后，必须打开游标以供使用。这个过程用前面定义的SELECT语句把数据实际检索出来。
+- 对于填有数据的游标，根据需要取出（检索）各行。
+- 在结束游标使用时，必须关闭游标。
 
 ## 灵感
 
@@ -665,3 +715,4 @@ is incompatible with sql_mode=only_full_group_by
 - 新增字段时，使用after或before指定添加的位置会慢一些吗？
 - char 和 varchar 有什么区别？
 - 熟悉存储过程和自定义函数的语法。
+- 如何优化分页数较大的速度？offset limit
