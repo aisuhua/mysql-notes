@@ -462,6 +462,34 @@ end|
 call processorders()
 # 查看结果
 select * from ordertotals
+
+
+# 触发器
+create trigger newtest after insert on test for each row select 'Insert new row.' into @text
+insert into test values ('suhua', 'lala', 20, 'su')
+select @test
+
+# INSERT 触发器
+create trigger neworder after insert on orders for each row select NEW.order_num into @order_num
+insert into orders(order_date, cust_id) values (NOW(), 10001)
+select @order_num
+
+# DELETE 触发器
+create trigger deleteorder before delete on orders for each row
+begin
+    insert into archive_orders(order_num, order_date, cust_id)
+    values (OLD.order_num, OLD.order_date, OLD.cust_id);
+end|
+delete from orders where order_num = 20011
+select * from archive_orders
+delete from orders where order_num = 20010
+select * from archive_orders
+
+# UPDATE 触发器
+create trigger updatevendor before update on vendors for each row
+set NEW.vend_state = upper(NEW.vend_state);
+update vendors set vend_state = 'suhua' where vend_id = 1006
+select * from vendors
 ```
 
 ## 摘录
@@ -697,6 +725,22 @@ is incompatible with sql_mode=only_full_group_by
 - 在结束游标使用时，必须关闭游标。
 - [13.6.6 Cursors](https://dev.mysql.com/doc/refman/5.7/en/cursors.html)
 
+触发器
+
+在创建触发器时，需要给出4条信息：
+
+- 唯一的触发器名；
+- 触发器关联的表；
+- 触发器应该响应的活动（DELETE、INSERT或UPDATE）；
+- 触发器何时执行（处理之前或之后）。
+
+知识点：
+
+- 创建触发器可能需要特殊的安全访问权限，但是，触发器的执行是自动的。如果INSERT、UPDATE或DELETE语句能够执行，则相关的触发器也能执行。
+- 应该用触发器来保证数据的一致性（大小写、格式等）。在触发器中执行这种类型的处理的优点是它总是进行这种处理，而且是透明地进行，与客户机应用无关。
+- 触发器的一种非常有意义的使用是创建审计跟踪。使用触发器，把更改（如果需要，甚至还有之前和之后的状态）记录到另一个表非常容易。
+- 遗憾的是，MySQL触发器中不支持CALL语句。这表示不能从触发器内调用存储过程。所需的存储过程代码需要复制到触发器内。
+
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
@@ -717,3 +761,4 @@ is incompatible with sql_mode=only_full_group_by
 - char 和 varchar 有什么区别？
 - 熟悉存储过程和自定义函数的语法。
 - 如何优化分页数较大的速度？offset limit
+- 如何实现数据库的SQL审计功能？trigger
