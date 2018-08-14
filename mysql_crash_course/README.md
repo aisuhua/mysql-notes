@@ -490,6 +490,29 @@ create trigger updatevendor before update on vendors for each row
 set NEW.vend_state = upper(NEW.vend_state);
 update vendors set vend_state = 'suhua' where vend_id = 1006
 select * from vendors
+
+# 事务
+start transaction
+delete from test where name = 'suhua'
+rollback
+select * from test
+
+start transaction
+delete from test where name = 'suhua'
+commit
+select * from test
+
+# 使用
+start transaction
+delete from orderitems where order_num = 20005
+delete from orders where order_num = 20005
+rollback
+
+# 禁止默认提交
+set autocommit = 0
+delete from test where name = 'xiaomi'
+rollback
+select * from test
 ```
 
 ## 摘录
@@ -741,6 +764,13 @@ is incompatible with sql_mode=only_full_group_by
 - 触发器的一种非常有意义的使用是创建审计跟踪。使用触发器，把更改（如果需要，甚至还有之前和之后的状态）记录到另一个表非常容易。
 - 遗憾的是，MySQL触发器中不支持CALL语句。这表示不能从触发器内调用存储过程。所需的存储过程代码需要复制到触发器内。
 
+事务
+
+- 事务（transaction）指一组SQL语句；
+- 回退（rollback）指撤销指定SQL语句的过程；
+- 提交（commit）指将未存储的SQL语句结果写入数据库表；
+- 保留点（savepoint）指事务处理中设置的临时占位符（placeholder），你可以对它发布回退（与回退整个事务处理不同）。
+
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
@@ -762,3 +792,7 @@ is incompatible with sql_mode=only_full_group_by
 - 熟悉存储过程和自定义函数的语法。
 - 如何优化分页数较大的速度？offset limit
 - 如何实现数据库的SQL审计功能？trigger
+- 如何加快查询速度？索引有哪些使用方法？
+- 如何保证在读和写之间数据的一致性？
+- 分布式事务？
+- 并发事务的效果需要进行演示。
