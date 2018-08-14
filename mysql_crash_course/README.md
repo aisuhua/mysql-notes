@@ -332,6 +332,92 @@ select * from orderitemsexpanded where order_num =20005
 show create view orderitemsexpanded
 # 删除视图
 drop view orderitemsexpanded
+
+# 存储过程
+
+# 修改分隔符
+delimiter |
+# 创建存储过程
+create procedure productpricing()
+begin
+select avg(prod_price) as priceaverage from products;
+end|
+# 恢复分隔符
+delimiter ;
+# 调用存储过程
+call productpricing()
+
+# 查看存储过程结构
+show create procedure productpricing
+# 删除存储过程
+drop procedure productpricing
+
+# 查看所有存储过程
+show procedure status
+show procedure status like 'productpricing'
+show procedure status where db = 'crashcourse'
+select db, name from mysql.proc
+
+# 使用参数1
+create procedure productpricing(
+    OUT p1 decimal(8, 2),
+    OUT p2 decimal(8, 2),
+    OUT p3 decimal(8, 2)
+)
+begin
+select min(prod_price) into p1 from products;
+select max(prod_price) into p2 from products;
+select avg(prod_price) into p3 from products;
+end|
+# 调用存储过程
+call productpricing(@min, @max, @avg)
+# 查看结果
+select @min, @max, @avg
+
+# 使用参数2
+create procedure ordertotal(
+    IN onumber int,
+    OUT ototal decimal(8, 2)
+)
+begin
+select sum(item_price * quantity) from orderitems where order_num = onumber into ototal;
+end|
+# 调用存储过程
+call ordertotal(20005, @total)
+call ordertotal(20006, @total)
+# 查看结果
+select @total
+
+# 智能存储过程
+create procedure ordertotal(
+    IN onumber int,
+    IN taxable boolean,
+    OUT ototal decimal(8, 2)
+) comment 'Obtain order total, optionally adding tax'
+begin
+
+-- Declare variable for total
+declare total decimal(8, 2);
+-- Declare tax percentage
+declare taxrate int default 6;
+
+-- Get the order total
+select sum(item_price * quantity) from orderitems where order_num = onumber into total;
+
+-- Is this taxable?
+if taxable then
+    select total + (total * (taxrate / 100)) into total;
+end if;
+
+-- And finally save to out variable
+select total into ototal;
+
+end|
+# 调用存储过程
+call ordertotal(20005, 0, @total)
+select @total
+call ordertotal(20005, 1, @total)
+select @total
 ```
 
 ## 摘录
@@ -547,6 +633,19 @@ is incompatible with sql_mode=only_full_group_by
 - DISTINCT；
 - 导出（计算）列。
 
+存储过程
+
+- 所有MySQL变量都必须以@开始。
+
+为什么要使用存储过程？
+
+- 通过把处理封装在容易使用的单元中，简化复杂的操作（正如前面例子所述）。
+- 由于不要求反复建立一系列处理步骤，这保证了数据的完整性。如果所有开发人员和应用程序都使用同一（试验和测试）存储过程，则所使用的代码都是相同的。这一点的延伸就是防止错误。需要执行的步骤越多，出错的可能性就越大。防止错误保证了数据的一致性。
+- 简化对变动的管理。如果表名、列名或业务逻辑（或别的内容）有变化，只需要更改存储过程的代码。使用它的人员甚至不需要知道这些变化。
+- 提高性能。因为使用存储过程比使用单独的SQL语句要快。
+- 存在一些只能用在单个请求中的MySQL元素和特性，存储过程可以使用它们来编写功能更强更灵活的代码。
+
+
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
@@ -564,3 +663,4 @@ is incompatible with sql_mode=only_full_group_by
 - 如何在同一条SQL语句里，根据不同的条件更新不同的记录？ when than
 - 如何生成分布式ID？
 - 新增字段时，使用after或before指定添加的位置会慢一些吗？
+- 熟悉存储过程和自定义函数的语法。
