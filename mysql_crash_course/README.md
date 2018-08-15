@@ -527,6 +527,25 @@ set autocommit = 0
 delete from test where name = 'xiaomi'
 rollback
 select * from test
+
+# 字符集
+
+# 查看所有引擎
+show engines
+# 查看所有字符集
+show character set
+# 查看所有校对集：_ci 表示比较或排序时不区分大小写
+show collation
+# 查看当前使用的字符集
+show variables like "character%"
+# 查看当前使用的校对集
+show variables like "collation%"
+
+# 自定义字符集和校对集
+create table demo2 (
+    name varchar(10),
+    description varchar(255) character set latin1 collate latin1_bin
+) engine InnoDB character set utf8mb4 collate utf8mb4_unicode_ci;
 ```
 
 ## 摘录
@@ -803,6 +822,17 @@ ACID特性
 >
 > 隐含事务关闭：当COMMIT或ROLLBACK语句执行后，事务会自动关闭（将来的更改会隐含提交）。
 
+字符集
+
+- 字符集为字母和符号的集合；
+- 编码为某个字符集成员的内部表示；
+- 校对为规定字符如何比较的指令。
+
+> 校对为什么重要：排序英文正文很容易，对吗？或许不。考虑词APE、apex和Apple。它们处于正确的排序顺序吗？这有赖于你是否想区分大小写。
+> 使用区分大小写的校对顺序，这些词有一种排序方式，使用不区分大小写的校对顺序有另外一种排序方式。
+> 这不仅影响排序（如用ORDER BY排序数据），还影响搜索（例如，寻找apple的WHERE子句是否能找到APPLE）。
+> 在使用诸如法文à或德文ö这样的字符时，情况更复杂，在使用不基于拉丁文的字符集（日文、希伯来文、俄文等）时，情况更为复杂。
+
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
@@ -831,3 +861,7 @@ ACID特性
 - 并发事务的效果需要进行演示。
 - 事务的ACID特征？[1](https://blog.csdn.net/u012440687/article/details/52116108)
 - [Difference between SET autocommit=1 and START TRANSACTION?](https://stackoverflow.com/questions/2950676/difference-between-set-autocommit-1-and-start-transaction-in-mysql-have-i-misse)
+- 字符集 utf8 和 utf8mb4 的区别？
+- 较对集 utf8mb4_unicode_ci 和 utf8mb4_general_ci 的区别？
+- 字符集 character_set_client/connection/database/server/results 的含义？
+- Emoji表情应该如何存储？
