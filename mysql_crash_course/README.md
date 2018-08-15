@@ -546,6 +546,48 @@ create table demo2 (
     name varchar(10),
     description varchar(255) character set latin1 collate latin1_bin
 ) engine InnoDB character set utf8mb4 collate utf8mb4_unicode_ci;
+
+# 授权管理
+
+# 创建用户：主机名默认为“%”，即对所有主机开放权限，如果指定用户登录不需要密码，则可以省略 identified by 部分
+create user suhua identified by 'xiaozhang'
+# 限定主机名
+create user 'suhua'@'localhost' identified by 'xiaozhang'
+
+# 使用密文密码
+mysql root@localhost:(none)> select password('xiaozhang');
++-------------------------------------------+
+| password('xiaozhang')                     |
++-------------------------------------------+
+| *B07BC81595E32C887CA121D3FD12401A091CEDCC |
++-------------------------------------------+
+create user 'suhua'@'localhost' identified by password '*B07BC81595E32C887CA121D3FD12401A091CEDCC'
+
+# 授权所有权限
+grant all on crashcourse.* to 'aisuhua'@'localhost'
+# 授予只读权限
+grant select on crashcourse.* to 'suhua'@'localhost'
+# 授予增删改查权限
+grant select, insert, update, delete on crashcourse.* to 'suhua'@'localhost'
+
+# 移除更新权限
+revoke update on crashcourse.* from 'suhua'@'localhost'
+
+# 查看指定用户权限
+show grants for 'suhua'@'localhost'
+# 查看自己的权限
+show grants
+
+# 修改用户密码
+set password for 'suhua'@'localhost' = password('iloveyou')
+# 修改自己的密码
+set password = password('123456')
+
+# 修改用户名
+rename user 'suhua'@'localhost' to 'xiaozhang'@'192.168.1.%'
+
+# 删除用户
+drop user 'xiaozhang'@'192.168.1.%'
 ```
 
 ## 摘录
@@ -833,6 +875,13 @@ ACID特性
 > 这不仅影响排序（如用ORDER BY排序数据），还影响搜索（例如，寻找apple的WHERE子句是否能找到APPLE）。
 > 在使用诸如法文à或德文ö这样的字符时，情况更复杂，在使用不基于拉丁文的字符集（日文、希伯来文、俄文等）时，情况更为复杂。
 
+授权管理
+
+> 用户定义为user@host：MySQL的权限用用户名和主机名结合定义。
+> 如果不指定主机名，则使用默认的主机名%（授予用户访问权限而不管主机名）。
+
+- [13.7.1 Account Management Statements](https://dev.mysql.com/doc/refman/5.7/en/account-management-sql.html)
+
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
@@ -866,3 +915,4 @@ ACID特性
 - 字符集 character_set_client/connection/database/server/results 的含义？
 - Emoji表情应该如何存储？
 - ROW_FORMAT=COMPRESSED 是什么意思？
+- 熟悉授权分配和管理。[1](https://www.cnblogs.com/lyhabc/p/3822267.html)
