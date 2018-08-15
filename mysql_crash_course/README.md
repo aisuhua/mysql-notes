@@ -347,6 +347,20 @@ delimiter ;
 # 调用存储过程
 call productpricing()
 
+# 创建存储过程2
+delimiter |
+create procedure test(
+    IN x int,
+    IN y int,
+    OUT z int
+)
+begin
+    set z = x + y;
+end|
+delimiter ;
+call test(10, 20, @z)
+select @z
+
 # 查看存储过程结构
 show create procedure productpricing
 # 删除存储过程
@@ -465,7 +479,7 @@ select * from ordertotals
 
 
 # 触发器
-create trigger newtest after insert on test for each row select 'Insert new row.' into @text
+create trigger newtest after insert on test for each row select 'Insert new row.' into @test
 insert into test values ('suhua', 'lala', 20, 'su')
 select @test
 
@@ -739,8 +753,11 @@ is incompatible with sql_mode=only_full_group_by
 - 简化对变动的管理。如果表名、列名或业务逻辑（或别的内容）有变化，只需要更改存储过程的代码。使用它的人员甚至不需要知道这些变化。
 - 提高性能。因为使用存储过程比使用单独的SQL语句要快。
 - 存在一些只能用在单个请求中的MySQL元素和特性，存储过程可以使用它们来编写功能更强更灵活的代码。
+- [13.1.16 CREATE PROCEDURE and CREATE FUNCTION Syntax](https://dev.mysql.com/doc/refman/5.7/en/create-procedure.html)
 
 游标
+
+> 只能用于存储过程。不像多数DBMS，MySQL游标只能用于存储过程（和函数）。
 
 - 在能够使用游标前，必须声明（定义）它。这个过程实际上没有检索数据，它只是定义要使用的SELECT语句。
 - 一旦声明后，必须打开游标以供使用。这个过程用前面定义的SELECT语句把数据实际检索出来。
@@ -756,6 +773,7 @@ is incompatible with sql_mode=only_full_group_by
 - 触发器关联的表；
 - 触发器应该响应的活动（DELETE、INSERT或UPDATE）；
 - 触发器何时执行（处理之前或之后）。
+- [13.1.20 CREATE TRIGGER Syntax](https://dev.mysql.com/doc/refman/5.7/en/create-trigger.html)
 
 知识点：
 
@@ -770,6 +788,20 @@ is incompatible with sql_mode=only_full_group_by
 - 回退（rollback）指撤销指定SQL语句的过程；
 - 提交（commit）指将未存储的SQL语句结果写入数据库表；
 - 保留点（savepoint）指事务处理中设置的临时占位符（placeholder），你可以对它发布回退（与回退整个事务处理不同）。
+- [13.3.1 START TRANSACTION, COMMIT, and ROLLBACK Syntax](https://dev.mysql.com/doc/refman/5.7/en/commit.html)
+
+ACID特性
+
+- 原子性（Atomicity）
+- 一致性（Consistency）
+- 隔离性（Isolation）
+- 持久性（Durability）
+
+> 哪些语句可以回退？
+> 事务处理用来管理INSERT、UPDATE和DELETE语句。你不能回退SELECT语句。（这样做也没有什么意义。）
+> 你不能回退CREATE或DROP操作。事务处理块中可以使用这两条语句，但如果你执行回退，它们不会被撤销。
+>
+> 隐含事务关闭：当COMMIT或ROLLBACK语句执行后，事务会自动关闭（将来的更改会隐含提交）。
 
 ## 灵感
 
@@ -795,4 +827,7 @@ is incompatible with sql_mode=only_full_group_by
 - 如何加快查询速度？索引有哪些使用方法？
 - 如何保证在读和写之间数据的一致性？
 - 分布式事务？
+- 如何保证并发事务的一致性？
 - 并发事务的效果需要进行演示。
+- 事务的ACID特征？[1](https://blog.csdn.net/u012440687/article/details/52116108)
+- [Difference between SET autocommit=1 and START TRANSACTION?](https://stackoverflow.com/questions/2950676/difference-between-set-autocommit-1-and-start-transaction-in-mysql-have-i-misse)
