@@ -564,7 +564,7 @@ mysql root@localhost:(none)> select password('xiaozhang');
 create user 'suhua'@'localhost' identified by password '*B07BC81595E32C887CA121D3FD12401A091CEDCC'
 
 # 授权所有权限
-grant all on crashcourse.* to 'aisuhua'@'localhost'
+grant all on crashcourse.* to 'suhua'@'localhost'
 # 授予只读权限
 grant select on crashcourse.* to 'suhua'@'localhost'
 # 授予增删改查权限
