@@ -865,3 +865,4 @@ ACID特性
 - 较对集 utf8mb4_unicode_ci 和 utf8mb4_general_ci 的区别？
 - 字符集 character_set_client/connection/database/server/results 的含义？
 - Emoji表情应该如何存储？
+- ROW_FORMAT=COMPRESSED 是什么意思？
