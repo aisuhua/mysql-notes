@@ -927,6 +927,6 @@ ACID特性
 - 字符集 character_set_client/connection/database/server/results 的含义？
 - Emoji表情应该如何存储？
 - ROW_FORMAT=COMPRESSED 是什么意思？
-- 如何新增用户和授权访问？[1](https://www.cnblogs.com/lyhabc/p/3822267.html)
+- 如何新增用户和授权？[1](https://www.cnblogs.com/lyhabc/p/3822267.html)
 - 如何备份和恢复数据？
 - 日志文件和数据文件有哪些？
