@@ -882,6 +882,18 @@ ACID特性
 
 - [13.7.1 Account Management Statements](https://dev.mysql.com/doc/refman/5.7/en/account-management-sql.html)
 
+数据库维护
+
+- 如果从一个表中删除大量数据，应该使用OPTIMIZE TABLE来收回所用的空间，从而优化表的性能。
+
+日志文件
+
+- 错误日志。它包含启动和关闭问题以及任意关键错误的细节。此日志通常名为hostname.err，位于data目录中。此日志名可用--log-error命令行选项更改。
+- 查询日志。它记录所有MySQL活动，在诊断问题时非常有用。此日志文件可能会很快地变得非常大，因此不应该长期使用它。此日志通常名为hostname.log，位于data目录中。此名字可以用--log命令行选项更改。
+- 二进制日志。它记录更新过数据（或者可能更新过数据）的所有语句。此日志通常名为hostname-bin，位于data目录内。此名字可以用--log-bin命令行选项更改。注意，这个日志文件是MySQL5中添加的，以前的MySQL版本中使用的是更新日志。
+- 缓慢查询日志。顾名思义，此日志记录执行缓慢的任何查询。这个日志在确定数据库何处需要优化很有用。此日志通常名为hostname-slow.log ，位于 data 目录中。此名字可以用--log-slow-queries命令行选项更改。
+
+
 ## 灵感
 
 - 如何修改 auto_increment 当前的自动增量和步长？
@@ -915,4 +927,6 @@ ACID特性
 - 字符集 character_set_client/connection/database/server/results 的含义？
 - Emoji表情应该如何存储？
 - ROW_FORMAT=COMPRESSED 是什么意思？
-- 熟悉授权分配和管理。[1](https://www.cnblogs.com/lyhabc/p/3822267.html)
+- 如何新增用户和授权访问？[1](https://www.cnblogs.com/lyhabc/p/3822267.html)
+- 如何备份和恢复数据？
+- 日志文件和数据文件有哪些？
