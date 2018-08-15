@@ -306,6 +306,10 @@ select cust_name, cust_contact, prod_id
 from orderitems as oi
 inner join orders as o on oi.order_num = o.order_num
 inner join customers as c on o.cust_id = c.cust_id
+
+# 查看所有视图
+show full tables where table_type = 'view'
+
 # 使用视图
 select * from productcustomers
 select * from productcustomers where prod_id = 'TNT2'
