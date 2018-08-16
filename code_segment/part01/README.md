@@ -26,7 +26,7 @@ mysql> SELECT PASSWORD('123456');
 +-------------------------------------------+
 ```
 
-创建用户
+创建用户 `'myname'@'172.16.%'`
 
 ```sql
 CREATE USER 'myname'@'172.16.%' IDENTIFIED BY PASSWORD '*6BB4837EB74329105EE4568DDA7DC67ED2CA2AD9'
