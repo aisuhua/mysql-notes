@@ -27,7 +27,7 @@ CREATE USER 'myname'@'172.16.%' IDENTIFIED BY '123456'
 SELECT * FROM mysql.user WHERE user = 'myname'\G
 ```
 
-## 用户授权
+## 授权
 
 查看用户权限（授权前）
 
@@ -105,6 +105,9 @@ SET PASSWORD FOR 'myname'@'172.16.%' = '654321'
 RENAME 'myname'@'172.16.%' TO 'myname'@'%'
 ```
 
+## 参考
+
+- [13.7.1 Account Management Statements](https://dev.mysql.com/doc/refman/5.7/en/account-management-sql.html)
 
 
 
