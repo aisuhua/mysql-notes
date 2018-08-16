@@ -1,8 +1,6 @@
 # Code Segment
 
-## SHOW
-
-### [SHOW STATUS](https://dev.mysql.com/doc/refman/5.7/en/show-status.html)
+## [SHOW STATUS](https://dev.mysql.com/doc/refman/5.7/en/show-status.html)
 
 查看当前状态
 
@@ -10,7 +8,7 @@
 SHOW STATUS
 ```
 
-### [SHOW VARIABLES](https://dev.mysql.com/doc/refman/5.7/en/show-variables.html)
+## [SHOW VARIABLES](https://dev.mysql.com/doc/refman/5.7/en/show-variables.html)
 
 查看当前设置
 
@@ -30,7 +28,7 @@ SHOW VARIABLES LIKE "character%"
 SHOW VARIABLES LIKE "collation%"
 ```
 
-### [SHOW PROCESSLIST](https://dev.mysql.com/doc/refman/5.7/en/show-processlist.html)
+## [SHOW PROCESSLIST](https://dev.mysql.com/doc/refman/5.7/en/show-processlist.html)
 
 查看所有进程
 
