@@ -1,7 +1,7 @@
 
-## user and grant
+## 新增用户及授权
 
-先看创建后的状态
+创建后的状态
 
 ```sql
 mysql> SHOW GRANTS FOR 'myname'@'172.16.%';
@@ -13,7 +13,7 @@ mysql> SHOW GRANTS FOR 'myname'@'172.16.%';
 +-------------------------------------------------------------------------------------------------------------------+
 ```
 
-## 创建用户及授权的步骤
+## 创建用户
 
 计算出一个密码（可在本地机器上执行）
 
@@ -32,7 +32,15 @@ mysql> SELECT PASSWORD('123456');
 CREATE USER 'myname'@'172.16.%' IDENTIFIED BY PASSWORD '*6BB4837EB74329105EE4568DDA7DC67ED2CA2AD9'
 ```
 
-查看用户权限
+查看用户信息
+
+```sql
+SELECT * FROM mysql.user WHERE user = 'myname'\G
+```
+
+## 用户授权
+
+查看用户权限（授权前）
 
 ```sql
 mysql> SHOW GRANTS FOR 'myname'@'172.16.%';
@@ -49,7 +57,7 @@ mysql> SHOW GRANTS FOR 'myname'@'172.16.%';
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, CREATE TEMPORARY TABLES, EXECUTE ON `mydb`.* TO 'myname'@'172.16.%'
 ```
 
-查看用户权限
+查看用户权限（授权后）
 
 ```sql
 mysql> SHOW GRANTS FOR 'myname'@'172.16.%';
@@ -61,7 +69,7 @@ mysql> SHOW GRANTS FOR 'myname'@'172.16.%';
 +-------------------------------------------------------------------------------------------------------------------+
 ```
 
-## 添加权限
+## 其他
 
 ```sql
 
