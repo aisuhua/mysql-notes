@@ -967,6 +967,10 @@ ACID特性
 - [Difference between SET autocommit=1 and START TRANSACTION?](https://stackoverflow.com/questions/2950676/difference-between-set-autocommit-1-and-start-transaction-in-mysql-have-i-misse)
 - 字符集 utf8 和 utf8mb4 的区别？
 - 较对集 utf8mb4_unicode_ci 和 utf8mb4_general_ci 的区别？
+[1](http://seanlook.com/2016/10/23/mysql-utf8mb4/)、
+[2](https://dev.mysql.com/doc/refman/8.0/en/charset-unicode-utf8mb4.html)、
+[3](https://drupal.stackexchange.com/questions/166405/why-are-we-using-utf8mb4-general-ci-and-not-utf8mb4-unicode-ci)、
+[4](https://stackoverflow.com/questions/766809/whats-the-difference-between-utf8-general-ci-and-utf8-unicode-ci)
 - 字符集 character_set_client/connection/database/server/results 的含义？
 - Emoji表情应该如何存储？
 - ROW_FORMAT=COMPRESSED 是什么意思？
