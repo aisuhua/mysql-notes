@@ -978,3 +978,4 @@ ACID特性
 - 如何使用 explain/trace 分析语句的执行情况？
 - 如何快速导入数据？关闭自动提交，删除索引
 - 如何查看当前数据库设置、状态？
+- [7.4.5.1 Making a Copy of a Database](https://dev.mysql.com/doc/refman/5.7/en/mysqldump-copying-database.html)

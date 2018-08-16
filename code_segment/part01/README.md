@@ -15,21 +15,10 @@ mysql> SHOW GRANTS FOR 'myname'@'172.16.%';
 
 ## 创建用户
 
-计算出一个密码（可在本地机器上执行）
-
-```sql
-mysql> SELECT PASSWORD('123456');
-+-------------------------------------------+
-| PASSWORD('123456')                        |
-+-------------------------------------------+
-| *6BB4837EB74329105EE4568DDA7DC67ED2CA2AD9 |
-+-------------------------------------------+
-```
-
 创建用户 `'myname'@'172.16.%'`
 
 ```sql
-CREATE USER 'myname'@'172.16.%' IDENTIFIED BY PASSWORD '*6BB4837EB74329105EE4568DDA7DC67ED2CA2AD9'
+CREATE USER 'myname'@'172.16.%' IDENTIFIED BY '123456'
 ```
 
 查看用户信息
@@ -71,8 +60,51 @@ mysql> SHOW GRANTS FOR 'myname'@'172.16.%';
 
 ## 其他
 
-```sql
+新增授权（`DROP`）
 
+```sql
+GRANT DROP ON mydb.* TO 'myname'@'172.16.%';
 ```
+
+授予全部权限
+
+```sql
+GRANT ALL ON mydb.* TO 'myname'@'172.16.%';
+```
+
+删除某个权限
+
+```sql
+REVOKE DROP ON mydb.* FROM 'myname'@'172.16.%'
+```
+
+创建只读帐号
+
+```sql
+# 创建用户
+CREATE USER 'readonly'@'172.16.%' IDENTIFIED BY '123456'
+# 授权
+GRANT SELECT ON mydb.* TO 'readonly'@'172.16.%'
+```
+
+删除用户帐号
+
+```sql
+DROP USER 'readonly'@'172.16.%'
+```
+
+修改用户密码
+
+```sql
+SET PASSWORD FOR 'myname'@'172.16.%' = '654321'
+```
+
+修改用户名（可通过修改用户名允许更多服务器访问数据库）
+
+```sql
+RENAME 'myname'@'172.16.%' TO 'myname'@'%'
+```
+
+
 
 
