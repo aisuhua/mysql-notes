@@ -602,6 +602,12 @@ kill 129
 
 # 分析语句执行过程
 explain select * from orders where order_num = 20005;
+
+# 自定义函数
+create function test(name char(10)) returns char(50)
+return concat('Hello', ', ', name, '!')
+# 调用函数
+select test('suhua') as say_hello
 ```
 
 ## 摘录
