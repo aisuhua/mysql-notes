@@ -24,3 +24,10 @@ CREATE TABLE files (
     KEY `key1` (`user_id`, `area_id`, `parent_id`)
 ) ENGINE InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
+
+## 修改表
+
+- 重命名表
+- 添加字段
+- 添加索引
+- 修改自增ID
