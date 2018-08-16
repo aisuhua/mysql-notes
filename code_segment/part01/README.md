@@ -1,7 +1,7 @@
 
 ## 创建用户及授权
 
-创建后的状态
+创建后的效果
 
 ```sql
 mysql> SHOW GRANTS FOR 'myname'@'172.16.%';
