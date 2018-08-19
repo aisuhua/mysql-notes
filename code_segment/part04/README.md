@@ -239,3 +239,113 @@ mysql> select * from demo;
 +------------+---------+
 2 rows in set (0.00 sec)
 ```
+
+## float、double和decimal的区别
+
+> 浮点数如果不写精度和标度，则会按照实际精度值显示，如果有精度和标度，则会自动将四舍五入后的结果插入，系统不会报错；
+> 定点数如果不写精度和标度，则按照默认值 decimal(10,0) 来进行操作，并如果数据超越了精度和标度值，系统会报错。
+
+演示
+
+```sql
+mysql> create table demo (a float(5, 2), b double(5, 2), c decimal(5, 2));
+Query OK, 0 rows affected (0.02 sec)
+
+mysql> desc demo;
++-------+--------------+------+-----+---------+-------+
+| Field | Type         | Null | Key | Default | Extra |
++-------+--------------+------+-----+---------+-------+
+| a     | float(5,2)   | YES  |     | NULL    |       |
+| b     | double(5,2)  | YES  |     | NULL    |       |
+| c     | decimal(5,2) | YES  |     | NULL    |       |
++-------+--------------+------+-----+---------+-------+
+3 rows in set (0.00 sec)
+
+mysql> insert into demo values (1.23, 1.23, 1.23);
+Query OK, 1 row affected (0.01 sec)
+
+mysql> select * from demo;
++------+------+------+
+| a    | b    | c    |
++------+------+------+
+| 1.23 | 1.23 | 1.23 |
++------+------+------+
+1 row in set (0.00 sec)
+
+mysql> insert into demo values (1.234, 1.234, 1.23);
+Query OK, 1 row affected (0.01 sec)
+
+mysql> select * from demo;
++------+------+------+
+| a    | b    | c    |
++------+------+------+
+| 1.23 | 1.23 | 1.23 |
+| 1.23 | 1.23 | 1.23 |
++------+------+------+
+2 rows in set (0.00 sec)
+
+mysql> insert into demo values (1.234, 1.234, 1.234);
+Query OK, 1 row affected, 1 warning (0.01 sec)
+
+mysql> show warnings;
++-------+------+----------------------------------------+
+| Level | Code | Message                                |
++-------+------+----------------------------------------+
+| Note  | 1265 | Data truncated for column 'c' at row 1 |
++-------+------+----------------------------------------+
+1 row in set (0.00 sec)
+
+mysql> select * from demo;
++------+------+------+
+| a    | b    | c    |
++------+------+------+
+| 1.23 | 1.23 | 1.23 |
+| 1.23 | 1.23 | 1.23 |
+| 1.23 | 1.23 | 1.23 |
++------+------+------+
+3 rows in set (0.00 sec)
+
+mysql> alter table demo modify a float;
+Query OK, 0 rows affected (0.01 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> alter table demo modify b double;
+Query OK, 0 rows affected (0.01 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> alter table demo modify c decimal;
+Query OK, 3 rows affected, 3 warnings (0.18 sec)
+Records: 3  Duplicates: 0  Warnings: 3
+
+mysql> desc demo;
++-------+---------------+------+-----+---------+-------+
+| Field | Type          | Null | Key | Default | Extra |
++-------+---------------+------+-----+---------+-------+
+| a     | float         | YES  |     | NULL    |       |
+| b     | double        | YES  |     | NULL    |       |
+| c     | decimal(10,0) | YES  |     | NULL    |       |
++-------+---------------+------+-----+---------+-------+
+3 rows in set (0.00 sec)
+
+mysql> insert into demo values (1.234, 1.234, 1.234);
+Query OK, 1 row affected, 1 warning (0.02 sec)
+
+mysql> show warnings;
++-------+------+----------------------------------------+
+| Level | Code | Message                                |
++-------+------+----------------------------------------+
+| Note  | 1265 | Data truncated for column 'c' at row 1 |
++-------+------+----------------------------------------+
+1 row in set (0.00 sec)
+
+mysql> select * from demo;
++-------+-------+------+
+| a     | b     | c    |
++-------+-------+------+
+|  1.23 |  1.23 |    1 |
+|  1.23 |  1.23 |    1 |
+|  1.23 |  1.23 |    1 |
+| 1.234 | 1.234 |    1 |
++-------+-------+------+
+4 rows in set (0.00 sec)
+```
