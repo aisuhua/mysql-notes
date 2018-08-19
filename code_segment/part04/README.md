@@ -169,3 +169,73 @@ mysql> desc demo;
 1 row in set
 Time: 0.017s
 ```
+
+## int 和 int(5) 的区别
+
+> When used in conjunction with the optional (nonstandard) attribute ZEROFILL, the default padding of spaces is replaced with zeros. For example, for a column declared as INT(4) ZEROFILL, a value of 5 is retrieved as 0005.
+
+- [11.2.5 Numeric Type Attributes](https://dev.mysql.com/doc/refman/5.7/en/numeric-type-attributes.html)
+
+演示
+
+```sql
+mysql> create table demo(a int, b int(5));
+Query OK, 0 rows affected (0.03 sec)
+
+mysql> desc demo;
++-------+---------+------+-----+---------+-------+
+| Field | Type    | Null | Key | Default | Extra |
++-------+---------+------+-----+---------+-------+
+| a     | int(11) | YES  |     | NULL    |       |
+| b     | int(5)  | YES  |     | NULL    |       |
++-------+---------+------+-----+---------+-------+
+2 rows in set (0.00 sec)
+
+mysql> insert into demo values(1, 1);
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from demo;
++------+------+
+| a    | b    |
++------+------+
+|    1 |    1 |
++------+------+
+1 row in set (0.00 sec)
+
+mysql> alter table demo modify a int zerofill;
+Query OK, 1 row affected (0.07 sec)
+Records: 1  Duplicates: 0  Warnings: 0
+
+mysql> alter table demo modify b int(5) zerofill;
+Query OK, 1 row affected (0.06 sec)
+Records: 1  Duplicates: 0  Warnings: 0
+
+mysql> desc demo;
++-------+---------------------------+------+-----+---------+-------+
+| Field | Type                      | Null | Key | Default | Extra |
++-------+---------------------------+------+-----+---------+-------+
+| a     | int(10) unsigned zerofill | YES  |     | NULL    |       |
+| b     | int(5) unsigned zerofill  | YES  |     | NULL    |       |
++-------+---------------------------+------+-----+---------+-------+
+2 rows in set (0.00 sec)
+
+mysql> select * from demo;
++------------+-------+
+| a          | b     |
++------------+-------+
+| 0000000001 | 00001 |
++------------+-------+
+1 row in set (0.00 sec)
+
+mysql> insert into demo values (1, 1111111);
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from demo;
++------------+---------+
+| a          | b       |
++------------+---------+
+| 0000000001 |   00001 |
+| 0000000001 | 1111111 |
++------------+---------+
+2 rows in set (0.00 sec)
+```
