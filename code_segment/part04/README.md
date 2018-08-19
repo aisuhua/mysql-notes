@@ -83,3 +83,89 @@ mysql> select concat('(', a, ')'), concat('(', b, ')') from demo03;
 1 row in set
 Time: 0.017s
 ```
+
+### Change、Midify和ALTER的区别
+
+The CHANGE, MODIFY, and ALTER clauses enable the names and definitions of existing columns to be altered. They have these comparative characteristics:
+
+- CHANGE:
+
+    - Can rename a column and change its definition, or both.
+
+    - Has more capability than MODIFY, but at the expense of convenience for some operations. CHANGE requires naming the column twice if not renaming it.
+
+    - With FIRST or AFTER, can reorder columns.
+
+- MODIFY:
+
+    - Can change a column definition but not its name.
+
+    - More convenient than CHANGE to change a column definition without renaming it.
+
+    - With FIRST or AFTER, can reorder columns.
+
+- ALTER: Used only to change a column default value.
+
+CHANGE is a MySQL extension to standard SQL. MODIFY is a MySQL extension for Oracle compatibility.
+
+- [Renaming, Redefining, and Reordering Columns](https://dev.mysql.com/doc/refman/5.7/en/alter-table.html)
+
+演示
+
+```sql
+mysql> create table demo(a int);
+Query OK, 0 rows affected
+Time: 0.030s
+mysql> desc demo;
++-------+---------+------+-----+---------+-------+
+| Field | Type    | Null | Key | Default | Extra |
++-------+---------+------+-----+---------+-------+
+| a     | int(11) | YES  |     | <null>  |       |
++-------+---------+------+-----+---------+-------+
+1 row in set
+Time: 0.008s
+mysql> alter table demo change a b smallint;
+Query OK, 0 rows affected
+Time: 0.056s
+mysql> desc demo;
++-------+-------------+------+-----+---------+-------+
+| Field | Type        | Null | Key | Default | Extra |
++-------+-------------+------+-----+---------+-------+
+| b     | smallint(6) | YES  |     | <null>  |       |
++-------+-------------+------+-----+---------+-------+
+1 row in set
+Time: 0.007s
+mysql> alter table demo change b b int;
+Query OK, 0 rows affected
+Time: 0.064s
+mysql> desc demo;
++-------+---------+------+-----+---------+-------+
+| Field | Type    | Null | Key | Default | Extra |
++-------+---------+------+-----+---------+-------+
+| b     | int(11) | YES  |     | <null>  |       |
++-------+---------+------+-----+---------+-------+
+1 row in set
+Time: 0.017s
+mysql> alter table demo modify b bigint;
+Query OK, 0 rows affected
+Time: 0.070s
+mysql> desc demo;
++-------+------------+------+-----+---------+-------+
+| Field | Type       | Null | Key | Default | Extra |
++-------+------------+------+-----+---------+-------+
+| b     | bigint(20) | YES  |     | <null>  |       |
++-------+------------+------+-----+---------+-------+
+1 row in set
+Time: 0.007s
+mysql> alter table demo alter b set default 0;
+Query OK, 0 rows affected
+Time: 0.006s
+mysql> desc demo;
++-------+------------+------+-----+---------+-------+
+| Field | Type       | Null | Key | Default | Extra |
++-------+------------+------+-----+---------+-------+
+| b     | bigint(20) | YES  |     | 0       |       |
++-------+------------+------+-----+---------+-------+
+1 row in set
+Time: 0.017s
+```
