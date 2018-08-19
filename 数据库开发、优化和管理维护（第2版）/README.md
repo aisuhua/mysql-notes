@@ -137,8 +137,6 @@ mysql> select * from demo;
 +------+---------------------+---------------------+
 2 rows in set (0.00 sec)
 
-mysql> inser into demo values (1, null, null);
-ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'inser into demo values (1, null, null)' at line 1
 mysql> insert into demo values (1, null, null);
 ERROR 1048 (23000): Column 'b' cannot be null
 ```
