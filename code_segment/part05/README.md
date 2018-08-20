@@ -1,6 +1,6 @@
 # 维护和管理
 
-查看表的行数、总大小、平均每行大小等
+## 查看表的行数、总大小、平均每行大小等
 
 ```sql
 mysql> SELECT * FROM tables WHERE information_schema.table_schema = 'study' AND table_name = 'demo'\G
@@ -29,3 +29,51 @@ TABLE_COLLATION: utf8mb4_general_ci
    BLOCK_FORMAT: Original
 1 row in set (0.00 sec)
 ```
+
+## 如何修改 auto_increment 当前的自动增量初始值和步长？
+
+```sql
+# 修改初始值
+mysql> set @@auto_increment_offset = 5;
+Query OK, 0 rows affected (0.00 sec)
+
+# 修改自动增长步长
+mysql> set @@auto_increment_increment = 10;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> show variables like "auto_incr%";
++--------------------------+-------+
+| Variable_name            | Value |
++--------------------------+-------+
+| auto_increment_increment | 10    |
+| auto_increment_offset    | 5     |
++--------------------------+-------+
+
+mysql> create table demo (id int auto_increment primary key);
+Query OK, 0 rows affected (0.08 sec)
+
+mysql> insert into demo values(null);
+Query OK, 1 row affected (0.05 sec)
+
+mysql> select * from demo;
++----+
+| id |
++----+
+|  5 |
++----+
+1 row in set (0.00 sec)
+
+mysql> insert into demo values(null);
+Query OK, 1 row affected (0.05 sec)
+
+mysql> select * from demo;
++----+
+| id |
++----+
+|  5 |
+| 15 |
++----+
+2 rows in set (0.00 sec)
+```
+
+- [16.1.6.2 Replication Master Options and Variables](https://dev.mysql.com/doc/refman/5.7/en/replication-options-master.html#sysvar_auto_increment_increment)

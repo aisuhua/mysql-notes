@@ -945,7 +945,6 @@ ACID特性
 
 ## 灵感
 
-- 如何修改 auto_increment 当前的自动增量和步长？
 - 如何设定默认字符集？
 - count(*) 和 count(field) 哪个更快？
 - 什么是自然连接？
