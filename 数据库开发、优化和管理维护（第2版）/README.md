@@ -304,9 +304,85 @@ mysql> select datediff('2019-09-09', NOW());
 - DATEDIFF(expr, expr) 返回起始时间和结束时间
 - [12.7 Date and Time Functions](https://dev.mysql.com/doc/refman/5.7/en/date-and-time-functions.html)
 
+## 流程函数
 
+演示
 
+```sql
+mysql> create table demo (user_id int, salary decimal(10, 2));
+Query OK, 0 rows affected (0.06 sec)
 
+mysql> insert into demo values(1, 1000), (2, 2000), (3, 3000), (4, 4000), (5, 5000), (6, null);
+Query OK, 6 rows affected (0.11 sec)
+Records: 6  Duplicates: 0  Warnings: 0
+
+mysql> select * from demo;
++---------+---------+
+| user_id | salary  |
++---------+---------+
+|       1 | 1000.00 |
+|       2 | 2000.00 |
+|       3 | 3000.00 |
+|       4 | 4000.00 |
+|       5 | 5000.00 |
+|       6 |    NULL |
++---------+---------+
+6 rows in set (0.00 sec)
+
+mysql> select if(salary > 2000, 'high', 'low') from demo;
++----------------------------------+
+| if(salary > 2000, 'high', 'low') |
++----------------------------------+
+| low                              |
+| low                              |
+| high                             |
+| high                             |
+| high                             |
+| low                              |
++----------------------------------+
+6 rows in set (0.00 sec)
+
+mysql> select ifnull(salary, 0) from demo;
++-------------------+
+| ifnull(salary, 0) |
++-------------------+
+|           1000.00 |
+|           2000.00 |
+|           3000.00 |
+|           4000.00 |
+|           5000.00 |
+|              0.00 |
++-------------------+
+6 rows in set (0.00 sec)
+
+mysql> select case when salary <= 2000 then 'low' else 'high' end from demo;
++-----------------------------------------------------+
+| case when salary <= 2000 then 'low' else 'high' end |
++-----------------------------------------------------+
+| low                                                 |
+| low                                                 |
+| high                                                |
+| high                                                |
+| high                                                |
+| high                                                |
++-----------------------------------------------------+
+6 rows in set (0.00 sec)
+
+mysql> select case salary when 1000 then 'low' when 2000 then 'mid' else 'high' end from demo;
++-----------------------------------------------------------------------+
+| case salary when 1000 then 'low' when 2000 then 'mid' else 'high' end |
++-----------------------------------------------------------------------+
+| low                                                                   |
+| mid                                                                   |
+| high                                                                  |
+| high                                                                  |
+| high                                                                  |
+| high                                                                  |
++-----------------------------------------------------------------------+
+6 rows in set (0.00 sec)
+```
+
+- [12.4 Control Flow Functions](https://dev.mysql.com/doc/refman/5.7/en/control-flow-functions.html)
 
 
 
