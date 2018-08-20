@@ -1,5 +1,7 @@
 # 存储过程和函数
 
+## 例1
+
 创建表
 
 ```sql
@@ -57,5 +59,59 @@ mysql> select get_cid(10001) as cid;
 1 row in set (0.00 sec)
 ```
 
+## 例2
+
+table: seq
+
+```sql
+CREATE TABLE `seq` (
+  `name` tinyint(3) unsigned NOT NULL,
+  `val` bigint(20) unsigned NOT NULL,
+  PRIMARY KEY (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+```
+
+function: `seq()`
+
+```sql
+CREATE FUNCTION `seq`(seq_name int) RETURNS bigint(20)
+begin
+    declare result  bigint unsigned;
+    update seq set val=last_insert_id(val+1) where name=seq_name;
+    set result = last_insert_id();
+    return result;
+end
+```
+
+function: `get_sharding_id_v2()`
+
+```sql
+CREATE FUNCTION `get_sharding_id_v2`(sequence bigint) RETURNS bigint(20)
+begin
+    declare result   bigint unsigned;
+    declare shard_id int;
+    declare cur_tid  bigint;
+    declare cur_time char(12);
+    declare cur_tsi  char(19);
+
+    set shard_id = @@server_id;
+    set cur_tid  = @@pseudo_thread_id;
+
+    set cur_time = curtime(3);
+    set cur_tsi  = concat(floor(unix_timestamp(concat(curdate(), ' ', left(cur_time, 8)))), right(cur_time, 3));
+
+    set result   = (cur_tsi - 1370016000000) << 23;
+    set result   = result | (shard_id % 8192) << 10;
+    set result   = result | (sequence % 1024);
+
+    return result;
+end
+```
+
+execute
+
+```sql
+select get_sharding_id_v2(seq(1))
+```
 
 
