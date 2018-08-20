@@ -146,7 +146,7 @@ BEGIN
 END
 ```
 
-execute: get_nextval(:num)
+execute: `get_nextval(:num)`
 
 ```sql
 mysql> select get_nextval(1);
@@ -180,7 +180,7 @@ mysql> select * from nextval;
 | 1  |   4  |
 | 2  |   1  |
 +----+------+
-1 row in set (0.00 sec)\
+1 row in set (0.00 sec)
 ```
 
 
