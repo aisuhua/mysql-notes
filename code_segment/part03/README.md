@@ -1,6 +1,6 @@
 # 存储过程和函数
 
-## 例1
+## Example 1
 
 创建表
 
@@ -59,7 +59,7 @@ mysql> select get_cid(10001) as cid;
 1 row in set (0.00 sec)
 ```
 
-## 例2
+## Example 2
 
 table: seq
 
@@ -112,6 +112,75 @@ execute
 
 ```sql
 select get_sharding_id_v2(seq(1))
+```
+
+## Example 3
+
+table: nextval
+
+```sql
+CREATE TABLE `nextval` (
+  `id` varchar(50) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `val` bigint(20) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+```
+
+function: `get_nextval`
+
+```sql
+CREATE FUNCTION `get_nextval`(`seq_name` varchar(100)) RETURNS bigint(20)
+BEGIN
+    DECLARE cur_val bigint(20);
+
+    SELECT val INTO cur_val FROM nextval WHERE id = seq_name;
+
+    IF cur_val IS NOT NULL THEN
+        UPDATE nextval SET val = last_insert_id( val + 3) WHERE id = seq_name;
+	    set cur_val = last_insert_id();
+	    return cur_val;
+    ELSE
+    	insert ignore into nextval set id=seq_name,val=1;
+	return 1;
+    END IF;
+END
+```
+
+execute: get_nextval(:num)
+
+```sql
+mysql> select get_nextval(1);
++----------------+
+| get_nextval(1) |
++----------------+
+|              1 |
++----------------+
+1 row in set (0.05 sec)
+
+mysql> select get_nextval(1);
++----------------+
+| get_nextval(1) |
++----------------+
+|              4 |
++----------------+
+1 row in set (0.00 sec)
+
+mysql> select get_nextval(2);
++----------------+
+| get_nextval(2) |
++----------------+
+|              1 |
++----------------+
+1 row in set (0.00 sec)
+
+mysql> select * from nextval;
++----+------+
+| id | val  |
++----+------+
+| 1  |   4  |
+| 2  |   1  |
++----+------+
+1 row in set (0.00 sec)\
 ```
 
 
