@@ -219,4 +219,113 @@ mysql> select * from nextval;
 1 row in set (0.00 sec)
 ```
 
+## Example 5
+
+table: seq
+
+```sql
+CREATE TABLE `seq` (
+  `name` tinyint(3) unsigned NOT NULL,
+  `val` bigint(20) unsigned NOT NULL,
+  PRIMARY KEY (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+```
+
+function: `seq(:seq_name)`
+
+```sql
+CREATE FUNCTION `seq`(seq_name int) RETURNS bigint(20)
+begin
+    declare result  bigint unsigned;
+    update seq set val=last_insert_id(val+1) where name=seq_name;
+    set result = last_insert_id();
+    return result;
+end
+```
+
+function: `get_dis_id(:sequence)`
+
+```sql
+CREATE FUNCTION `get_dis_id`(sequence bigint) RETURNS bigint(20)
+begin
+    declare result   bigint unsigned;
+    declare shard_id int;
+    declare cur_tid  bigint;
+    declare cur_time char(12);
+    declare cur_tsi  char(19);
+
+    set shard_id = @@server_id;
+    set cur_tid  = @@pseudo_thread_id;
+
+    set cur_time = curtime(3);
+    set cur_tsi  = concat(floor(unix_timestamp(concat(curdate(), ' ', left(cur_time, 8)))), right(cur_time, 3));
+
+    set result   = (cur_tsi - 1451577600000) << 13;
+    set result   = result | (shard_id % 16) << 9;
+    set result   = result | (sequence % 512);
+    set result   = result - 8953815040000;
+
+    return result;
+end
+```
+
+execute: `get_dis_id(seq(:num))`
+
+```sql
+mysql> select get_dis_id(seq(1));
++----------------------+
+|   get_dis_id(seq(1)) |
+|----------------------|
+|      672287222772323 |
++----------------------+
+1 row in set
+Time: 0.005s
+
+mysql> select get_dis_id(seq(1));
++----------------------+
+|   get_dis_id(seq(1)) |
+|----------------------|
+|      672287229514340 |
++----------------------+
+1 row in set
+Time: 0.004s
+```
+
+procedure: `get_dis_id_batch(:num)`
+
+```sql
+CREATE PROCEDURE `get_dis_id_batch`(IN num INT)
+BEGIN
+    DECLARE s int;
+
+    set s = 0;
+    CREATE TEMPORARY TABLE IF NOT EXISTS tb (id bigint) engine = myisam;
+    START TRANSACTION;
+    WHILE s < num DO
+        insert into tb select  get_dis_id(seq(1));
+        set s = s +1;
+    END WHILE;
+    COMMIT;
+    select * from tb;
+    drop table tb;
+END
+```
+
+execute: `call get_dis_id_batch(:num)`
+
+```sql
+mysql> CALL get_dis_id_batch(3);
++-----------------+
+|              id |
+|-----------------|
+| 672288391402088 |
+| 672288391410281 |
+| 672288391410282 |
++-----------------+
+Query OK, 0 rows affected
+Time: 0.005s
+```
+
+
+
 
