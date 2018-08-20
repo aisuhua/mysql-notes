@@ -116,6 +116,42 @@ select get_sharding_id_v2(seq(1))
 
 ## Example 3
 
+procedure: `get_shard_batch`
+
+```sql
+CREATE PROCEDURE `get_shard_batch`(IN num INT)
+BEGIN
+    DECLARE s int;
+    set session sql_log_bin = off;
+    set s = 0;
+    CREATE TEMPORARY TABLE IF NOT EXISTS tb (id bigint) engine = myisam;
+    WHILE s < num DO
+        insert into tb select get_sharding_id_v2(seq(1));
+        set s = s +1;
+    END WHILE;
+    select * from tb;
+    drop table tb;
+    set session sql_log_bin = on;
+END
+```
+
+execute: `CALL get_shard_batch(3)`
+
+```sql
+mysql> CALL get_shard_batch(3);
++---------------------+
+|                  id |
+|---------------------|
+| 1381770927792138092 |
+| 1381770927800526701 |
+| 1381770927800526702 |
++---------------------+
+Query OK, 0 rows affected
+Time: 0.006s
+```
+
+## Example 4
+
 table: nextval
 
 ```sql
