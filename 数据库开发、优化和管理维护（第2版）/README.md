@@ -434,6 +434,8 @@ mysql> select md5('123456');
 
 ## 存储引擎
 
+查看所有引擎
+
 ```sql
 mysql> show engines;
 +--------------------+---------+----------------------------------------------------------------+--------------+------+------------+
@@ -452,10 +454,102 @@ mysql> show engines;
 9 rows in set (0.00 sec)
 ```
 
+## 外键的使用
 
+演示
 
+```sql
+mysql> create table country(id int not null primary key, country_name varchar(20)) engine innodb;
+Query OK, 0 rows affected (0.03 sec)
 
+mysql> create table city(
+    > id int not null primary key, country_id int, city_name varchar(20),
+    > constraint fk_city_country foreign key (country_id) references country(id)
+    > on delete restrict on update cascade
+    > ) engine innodb;
+Query OK, 0 rows affected (0.01 sec)
 
+mysql> insert into country values (1, 'Guangdong');
+Query OK, 1 row affected (0.12 sec)
+
+mysql> select * from country;
++----+--------------+
+| id | country_name |
++----+--------------+
+|  1 | Guangdong    |
++----+--------------+
+1 row in set (0.00 sec)
+
+mysql> insert into city values (1, 1, 'Shengzheng');
+Query OK, 1 row affected (0.06 sec)
+
+mysql> select * from city;
++----+------------+------------+
+| id | country_id | city_name  |
++----+------------+------------+
+|  1 |          1 | Shengzheng |
++----+------------+------------+
+1 row in set (0.00 sec)
+
+mysql> insert into city values (2, 2, 'Shengzheng');
+ERROR 1452 (23000): Cannot add or update a child row: a foreign key constraint fails (`mydb`.`city`, CONSTRAINT `fk_city_country` FOREIGN KEY (`country_id`) REFERENCES `country` (`id`) ON UPDATE CASCADE)
+
+mysql> delete from country where id = 1;
+ERROR 1451 (23000): Cannot delete or update a parent row: a foreign key constraint fails (`mydb`.`city`, CONSTRAINT `fk_city_country` FOREIGN KEY (`country_id`) REFERENCES `country` (`id`) ON UPDATE CASCADE)
+mysql> update country set id = 1000 where id = 1;
+Query OK, 1 row affected (0.12 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql> select * from country;
++------+--------------+
+| id   | country_name |
++------+--------------+
+| 1000 | Guangdong    |
++------+--------------+
+1 row in set (0.00 sec)
+
+mysql> select * from city;
++----+------------+------------+
+| id | country_id | city_name  |
++----+------------+------------+
+|  1 |       1000 | Shengzheng |
++----+------------+------------+
+1 row in set (0.00 sec)
+```
+
+在导入大量数据（LOAD DATA）时，为了加快速度可以临时关闭外键检查，导入完成后再开启。
+
+```sql
+mysql> show variables like "foreign%";
++--------------------+-------+
+| Variable_name      | Value |
++--------------------+-------+
+| foreign_key_checks | ON    |
++--------------------+-------+
+1 row in set (0.00 sec)
+
+mysql> set @@foreign_key_checks = 0;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> show variables like "foreign%";
++--------------------+-------+
+| Variable_name      | Value |
++--------------------+-------+
+| foreign_key_checks | OFF   |
++--------------------+-------+
+1 row in set (0.01 sec)
+
+mysql> set @@foreign_key_checks = 1;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> show variables like "foreign%";
++--------------------+-------+
+| Variable_name      | Value |
++--------------------+-------+
+| foreign_key_checks | ON    |
++--------------------+-------+
+1 row in set (0.00 sec)
+```
 
 
 

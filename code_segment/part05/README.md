@@ -28,6 +28,9 @@ TABLE_COLLATION: utf8mb4_general_ci
   TABLE_COMMENT: some comment here.
    BLOCK_FORMAT: Original
 1 row in set (0.00 sec)
+
+# 或者通过下面方式查看
+show table status like "city"\G
 ```
 
 ## 如何修改 auto_increment 当前的自动增量初始值和步长？
