@@ -384,7 +384,51 @@ mysql> select case salary when 1000 then 'low' when 2000 then 'mid' else 'high' 
 
 - [12.4 Control Flow Functions](https://dev.mysql.com/doc/refman/5.7/en/control-flow-functions.html)
 
+## 其他函数
 
+演示
+
+```sql
+mysql> select database();
++------------+
+| database() |
++------------+
+| mydb       |
++------------+
+1 row in set (0.00 sec)
+
+mysql> select version();
++-------------------------+
+| version()               |
++-------------------------+
+| 5.7.23-0ubuntu0.16.04.1 |
++-------------------------+
+1 row in set (0.00 sec)
+
+mysql> select user();
++----------------+
+| user()         |
++----------------+
+| root@localhost |
++----------------+
+1 row in set (0.00 sec)
+
+mysql> select password(123456);
++-------------------------------------------+
+| password(123456)                          |
++-------------------------------------------+
+| *6BB4837EB74329105EE4568DDA7DC67ED2CA2AD9 |
++-------------------------------------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> select md5('123456');
++----------------------------------+
+| md5('123456')                    |
++----------------------------------+
+| e10adc3949ba59abbe56e057f20f883e |
++----------------------------------+
+1 row in set (0.00 sec)
+```
 
 
 
