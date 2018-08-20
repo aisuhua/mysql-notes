@@ -430,6 +430,7 @@ mysql> select md5('123456');
 1 row in set (0.00 sec)
 ```
 
+- [12.14 Information Functions](https://dev.mysql.com/doc/refman/5.7/en/information-functions.html)
 
 
 
