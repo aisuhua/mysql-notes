@@ -1046,3 +1046,115 @@ mysql> show variables like "collation%";
 - [10.4 Connection Character Sets and Collations](https://dev.mysql.com/doc/refman/5.7/en/charset-connection.html)
 - [5.1.7 Server System Variables](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html)
 - [Change MySQL default character set to UTF-8 in my.cnf?](https://stackoverflow.com/questions/3513773/change-mysql-default-character-set-to-utf-8-in-my-cnf)
+
+## BTREE 和  HASH 索引
+
+MEMORY 引擎的表默认索引类型为 HASH，此类型的索引在范围查询时不会走索引。
+
+```sql
+mysql> create table demo (id int, name varchar(100), key id (id), key name (name)) engine innodb;
+Query OK, 0 rows affected (0.05 sec)
+
+mysql> create table demo_memory (id int, name varchar(100), key id (id), key name (name)) engine memory;
+Query OK, 0 rows affected (0.05 sec)
+
+mysql> show index from demo;
++-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| Table | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
++-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| demo  |          1 | name     |            1 | name        | A         |           2 |     NULL | NULL   | YES  | BTREE      |         |               |
+| demo  |          1 | id       |            1 | id          | A         |           3 |     NULL | NULL   | YES  | BTREE      |         |               |
++-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+2 rows in set (0.00 sec)
+
+mysql> show index from demo_memory;
++-------------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| Table       | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
++-------------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| demo_memory |          1 | id       |            1 | id          | NULL      |           2 |     NULL | NULL   | YES  | HASH       |         |               |
+| demo_memory |          1 | name     |            1 | name        | NULL      |           2 |     NULL | NULL   | YES  | HASH       |         |               |
++-------------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+2 rows in set (0.00 sec)
+
+mysql> insert into demo values(1, 'suhua'), (2, 'xiaozhang'), (3, 'xiaotian');
+Query OK, 3 rows affected (0.00 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql> insert into demo_memory values(1, 'suhua'), (2, 'xiaozhang'), (3, 'xiaotian');
+Query OK, 3 rows affected (0.00 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql> explain select * from demo where id > 1 and id < 3;
++----+-------------+-------+------------+-------+---------------+------+---------+------+------+----------+-----------------------+
+| id | select_type | table | partitions | type  | possible_keys | key  | key_len | ref  | rows | filtered | Extra                 |
++----+-------------+-------+------------+-------+---------------+------+---------+------+------+----------+-----------------------+
+|  1 | SIMPLE      | demo  | NULL       | range | id            | id   | 5       | NULL |    1 |   100.00 | Using index condition |
++----+-------------+-------+------------+-------+---------------+------+---------+------+------+----------+-----------------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select * from demo_memory where id > 1 and id < 3;
++----+-------------+-------------+------------+------+---------------+------+---------+------+------+----------+-------------+
+| id | select_type | table       | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra       |
++----+-------------+-------------+------------+------+---------------+------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | demo_memory | NULL       | ALL  | id            | NULL | NULL    | NULL |    3 |    33.33 | Using where |
++----+-------------+-------------+------------+------+---------------+------+---------+------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+```
+
+## 视图
+
+查看视图
+
+```sql
+mysql> show full tables;
++----------------+------------+
+| Tables_in_mydb | Table_type |
++----------------+------------+
+| suhua          | VIEW       |
++----------------+------------+
+5 rows in set (0.00 sec)
+
+mysql> show table status like "suhua"\G;
+*************************** 1. row ***************************
+           Name: suhua
+         Engine: NULL
+        Version: NULL
+     Row_format: NULL
+           Rows: NULL
+ Avg_row_length: NULL
+    Data_length: NULL
+Max_data_length: NULL
+   Index_length: NULL
+      Data_free: NULL
+ Auto_increment: NULL
+    Create_time: NULL
+    Update_time: NULL
+     Check_time: NULL
+      Collation: NULL
+       Checksum: NULL
+ Create_options: NULL
+        Comment: VIEW
+1 row in set (0.00 sec)
+
+mysql> select * from information_schema.views where table_name = 'suhua'\G
+*************************** 1. row ***************************
+       TABLE_CATALOG: def
+        TABLE_SCHEMA: mydb
+          TABLE_NAME: suhua
+     VIEW_DEFINITION: select `mydb`.`demo`.`id` AS `i`,`mydb`.`demo`.`name` AS `n` from `mydb`.`demo`
+        CHECK_OPTION: NONE
+        IS_UPDATABLE: YES
+             DEFINER: root@localhost
+       SECURITY_TYPE: DEFINER
+CHARACTER_SET_CLIENT: utf8mb4
+COLLATION_CONNECTION: utf8mb4_general_ci
+1 row in set (0.00 sec)
+
+mysql> show create view suhua\G
+*************************** 1. row ***************************
+                View: suhua
+         Create View: CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `suhua` AS select `demo`.`id` AS `i`,`demo`.`name` AS `n` from `demo`
+character_set_client: utf8mb4
+collation_connection: utf8mb4_general_ci
+1 row in set (0.00 sec)
+```
