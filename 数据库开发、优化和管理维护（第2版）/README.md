@@ -551,6 +551,129 @@ mysql> show variables like "foreign%";
 1 row in set (0.00 sec)
 ```
 
+## 选择合适的数据类型
 
+### char 和 varchar
 
+由于 char 是固定长度的，所以它的处理速度比 varchar 快得多，但是其缺点是浪费存储空间，
+程序需要对行尾空格进行处理，所以对于那些长度变化不大并且对查询速度有较高要求的数据可以考虑使用 char 类型存储。
+
+另外，随着 MySQL 版本不断升级，varchar 数据类型的性能也在不断改进并提高，
+所以在许多应用中，varchar 类型被更多地使用。
+
+```sql
+mysql> create table demo (a char(10), b varchar(10));
+Query OK, 0 rows affected (0.03 sec)
+
+mysql> insert into demo values('suhua ', 'suhua ');
+Query OK, 1 row affected (0.01 sec)
+
+mysql> select * from demo;
++-------+--------+
+| a     | b      |
++-------+--------+
+| suhua | suhua  |
++-------+--------+
+1 row in set (0.00 sec)
+
+mysql> select length(a), length(b) from demo;
++-----------+-----------+
+| length(a) | length(b) |
++-----------+-----------+
+|         5 |         6 |
++-----------+-----------+
+1 row in set (0.00 sec)
+
+mysql> select concat(a, '+'), concat(b, '+') from demo;
++----------------+----------------+
+| concat(a, '+') | concat(b, '+') |
++----------------+----------------+
+| suhua+         | suhua +        |
++----------------+----------------+
+1 row in set (0.00 sec)
+```
+
+- [11.4.1 The CHAR and VARCHAR Types](https://dev.mysql.com/doc/refman/5.7/en/char.html)
+
+## TEXT 和 BLOB
+
+一般在保存少量字符串的时候，我们会选择 CHAR 或者 VARCHAR。而在保存较大文本时，通常会选择使用 TEXT 和 BLOB。
+二者之间的主要差别是 BLOB 能用来保存二进制数据，比如照片。而 TEXT 只能保存字符数据，比如一篇文章或者日记。
+
+**BLOB 和 TEXT 值会引起一些性能问题，特别是执行了大量的删除操作时。**
+
+删除操作会在数据表中留下很大的“空洞”，以后填入这些“空洞”的记录在插入的性能上会有所影响。
+为了提高性能，建议定期使用 OPTIMIZE TABLE 的碎片整理功能对这类表进行整理，
+避免因为“空洞”造成性能问题。
+
+```sql
+mysql> create table demo (id varchar(10), content text);
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> insert into demo values (1, repeat('haha', 100));
+Query OK, 1 row affected (0.06 sec)
+
+mysql> insert into demo values (2, repeat('haha', 100));
+Query OK, 1 row affected (0.00 sec)
+
+mysql> insert into demo values (3, repeat('haha', 100));
+Query OK, 1 row affected (0.30 sec)
+
+mysql> insert into demo select * from demo;
+Query OK, 3 rows affected (0.04 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql> insert into demo select * from demo;
+Query OK, 6 rows affected (0.06 sec)
+Records: 6  Duplicates: 0  Warnings: 0
+
+mysql> insert into demo select * from demo;
+Query OK, 393216 rows affected (16.11 sec)
+Records: 393216  Duplicates: 0  Warnings: 0
+```
+
+查看数据库文件大小
+
+```sh
+root@ubuntu-test:/var/lib/mysql/mydb# du -sh *
+12K	demo.frm
+365M	demo.ibd
+```
+
+执行碎片整理
+
+```
+mysql> optimize table demo;
++-----------+----------+----------+-------------------------------------------------------------------+
+| Table     | Op       | Msg_type | Msg_text                                                          |
++-----------+----------+----------+-------------------------------------------------------------------+
+| mydb.demo | optimize | note     | Table does not support optimize, doing recreate + analyze instead |
+| mydb.demo | optimize | status   | OK                                                                |
++-----------+----------+----------+-------------------------------------------------------------------+
+2 rows in set (14.46 sec)
+
+root@ubuntu-test:/var/lib/mysql/mydb# du -sh *
+12K	demo.frm
+277M	demo.ibd
+
+mysql> alter table demo engine myisam;
+Query OK, 524288 rows affected (0.76 sec)
+Records: 524288  Duplicates: 0  Warnings: 0
+
+mysql> delete from demo where id = 2;
+Query OK, 262144 rows affected (1.09 sec)
+
+mysql> optimize table demo;
++-----------+----------+----------+----------+
+| Table     | Op       | Msg_type | Msg_text |
++-----------+----------+----------+----------+
+| mydb.demo | optimize | status   | OK       |
++-----------+----------+----------+----------+
+1 row in set (0.21 sec)
+
+root@ubuntu-test:/var/lib/mysql/mydb# du -sh *
+12K	demo.frm
+206M	demo.MYD
+4.0K	demo.MYI
+```
 
