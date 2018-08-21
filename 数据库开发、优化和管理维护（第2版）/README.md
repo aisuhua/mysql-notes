@@ -758,11 +758,12 @@ select * from information_schema.character_sets
 数据库服务器、数据库、表、字段的字符编码都可以进行修改。
 
 ```
-# 修改字符集和校对规则
+# 修改服务器字符集和校对规则
 [mysqld]
 character_set_server = utf8mb4
 collation_server = utf8mb4_unicode_ci
 
+# 修改连接字符集
 [mysql]
 default-character-set=utf8mb4
 
