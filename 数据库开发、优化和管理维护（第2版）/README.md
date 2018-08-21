@@ -677,3 +677,4 @@ root@ubuntu-test:/var/lib/mysql/mydb# du -sh *
 4.0K	demo.MYI
 ```
 
+- [What does “Table does not support optimize, doing recreate + analyze instead” mean?](https://stackoverflow.com/questions/30635603/what-does-table-does-not-support-optimize-doing-recreate-analyze-instead-me)
