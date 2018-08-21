@@ -627,6 +627,8 @@ mysql> insert into demo select * from demo;
 Query OK, 6 rows affected (0.06 sec)
 Records: 6  Duplicates: 0  Warnings: 0
 
+...
+
 mysql> insert into demo select * from demo;
 Query OK, 393216 rows affected (16.11 sec)
 Records: 393216  Duplicates: 0  Warnings: 0
@@ -635,6 +637,19 @@ Records: 393216  Duplicates: 0  Warnings: 0
 查看数据库文件大小
 
 ```sh
+root@ubuntu-test:/var/lib/mysql/mydb# du -sh *
+12K	demo.frm
+365M	demo.ibd
+```
+
+删除 1/3 的数据
+
+```
+mysql> delete from demo where id = 1;
+Query OK, 262144 rows affected (9.02 sec)
+
+mysql> exit;
+
 root@ubuntu-test:/var/lib/mysql/mydb# du -sh *
 12K	demo.frm
 365M	demo.ibd
