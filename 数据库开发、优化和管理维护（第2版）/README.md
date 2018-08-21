@@ -454,6 +454,224 @@ mysql> show engines;
 9 rows in set (0.00 sec)
 ```
 
+## Memory 引擎的使用
+
+MEMORY 类型的存储引擎主要用于那些内容变化不频繁的代码表，或者作为统计操作的中间表，
+便于高效地对中间结果进行分析并得到最终的统计结果。
+对于存储引擎为 MEMORY 的表进行更新操作要谨慎，因为数据并没有实际写入到磁盘中，
+所以一定要对下次重启服务后如何获取这些修改后的数据有所顾虑。
+
+给 Memory 表创建索引的时候，可以指定使用 HASH 索引还是 BTREE 索引。
+
+```sql
+mysql> create table demo (id int, name varchar(10)) engine memory;
+Query OK, 0 rows affected (0.07 sec)
+
+mysql> show table status like "demo"\G
+*************************** 1. row ***************************
+           Name: demo
+         Engine: MEMORY
+        Version: 10
+     Row_format: Fixed
+           Rows: 0
+ Avg_row_length: 46
+    Data_length: 0
+Max_data_length: 16078150
+   Index_length: 0
+      Data_free: 0
+ Auto_increment: NULL
+    Create_time: 2018-08-20 22:09:24
+    Update_time: NULL
+     Check_time: NULL
+      Collation: utf8mb4_unicode_ci
+       Checksum: NULL
+ Create_options:
+        Comment:
+1 row in set (0.00 sec)
+
+mysql> alter table demo add index name using hash (name);
+Query OK, 0 rows affected (0.02 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> show create table demo\G
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `id` int(11) DEFAULT NULL,
+  `name` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  KEY `name` (`name`) USING HASH
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+1 row in set (0.00 sec)
+
+mysql> show index from demo\G
+*************************** 1. row ***************************
+        Table: demo
+   Non_unique: 1
+     Key_name: name
+ Seq_in_index: 1
+  Column_name: name
+    Collation: A
+  Cardinality: NULL
+     Sub_part: NULL
+       Packed: NULL
+         Null: YES
+   Index_type: HASH
+      Comment:
+Index_comment:
+1 row in set (0.00 sec)
+
+mysql> alter table demo drop index name;
+Query OK, 0 rows affected (0.06 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> show create table demo\G;
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `id` int(11) DEFAULT NULL,
+  `name` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+1 row in set (0.00 sec)
+
+mysql> alter table demo add index name using btree (name);
+Query OK, 0 rows affected (0.05 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> show create table demo\G
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `id` int(11) DEFAULT NULL,
+  `name` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  KEY `name` (`name`) USING BTREE
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+1 row in set (0.00 sec)
+
+mysql> show index from demo\G
+*************************** 1. row ***************************
+        Table: demo
+   Non_unique: 1
+     Key_name: name
+ Seq_in_index: 1
+  Column_name: name
+    Collation: A
+  Cardinality: NULL
+     Sub_part: NULL
+       Packed: NULL
+         Null: YES
+   Index_type: BTREE
+      Comment:
+Index_comment:
+1 row in set (0.00 sec)
+```
+
+## Merge 引擎的使用
+
+MERGE 表在磁盘上保留两个文件，文件名以表的名字开始，一个.frm文件存储表定义，
+另一个.MRG文件包含组合表信息，包括MERGE表由哪些表组成，插入新的数据时的依据。
+可以通过修改.MRG文件来修改 MERGE 表，但是修改后要通过 FLUSH TABLES 刷新。
+
+通常我们使用 MERGE 表来透明地对多个表进行查询和更新操作，而对这种按时间记录的操作日志表则可以透明地进行插入操作。
+
+```sql
+mysql> create table demo1 (id int, name varchar(10), key idx1 (id)) engine myisam;
+Query OK, 0 rows affected (0.03 sec)
+
+mysql> create table demo2 (id int, name varchar(10), key idx1 (id)) engine myisam;
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> create table demo (id int, name varchar(10), key idx1 (id)) engine merge union=(demo1, demo2) insert_method=last;
+Query OK, 0 rows affected (0.06 sec)
+
+mysql> insert into demo1 values(1, 'suhua'), (2, 'xiaozhang');
+Query OK, 2 rows affected (0.00 sec)
+Records: 2  Duplicates: 0  Warnings: 0
+
+mysql> insert into demo2 values(1, 'google'), (2, 'facebook');
+Query OK, 2 rows affected (0.02 sec)
+Records: 2  Duplicates: 0  Warnings: 0
+
+mysql> select * from demo01;
+ERROR 1146 (42S02): Table 'mydb.demo01' doesn't exist
+mysql> select * from demo1;
++------+-----------+
+| id   | name      |
++------+-----------+
+|    1 | suhua     |
+|    2 | xiaozhang |
++------+-----------+
+2 rows in set (0.00 sec)
+
+mysql> select * from demo2;
++------+----------+
+| id   | name     |
++------+----------+
+|    1 | google   |
+|    2 | facebook |
++------+----------+
+2 rows in set (0.00 sec)
+
+mysql> show tables;
++----------------+
+| Tables_in_mydb |
++----------------+
+| demo           |
+| demo1          |
+| demo2          |
++----------------+
+
+mysql> show create table demo\G
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `id` int(11) DEFAULT NULL,
+  `name` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  KEY `idx1` (`id`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci INSERT_METHOD=LAST UNION=(`demo1`,`demo2`)
+1 row in set (0.00 sec)
+
+mysql> insert into demo values (3, 'xiaomi');
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from demo1;
++------+-----------+
+| id   | name      |
++------+-----------+
+|    1 | suhua     |
+|    2 | xiaozhang |
++------+-----------+
+2 rows in set (0.00 sec)
+
+mysql> select * from demo2;
++------+----------+
+| id   | name     |
++------+----------+
+|    1 | google   |
+|    2 | facebook |
+|    3 | xiaomi   |
++------+----------+
+3 rows in set (0.00 sec)
+
+mysql> select * from demo;
++------+-----------+
+| id   | name      |
++------+-----------+
+|    1 | suhua     |
+|    2 | xiaozhang |
+|    1 | google    |
+|    2 | facebook  |
+|    3 | xiaomi    |
++------+-----------+
+5 rows in set (0.00 sec)
+```
+
+查看文件信息
+
+```sh
+root@ubuntu-test:/var/lib/mysql/mydb# ls
+db.opt  demo1.frm  demo1.MYD  demo1.MYI  demo2.frm  demo2.MYD  demo2.MYI  demo.frm  demo.MRG
+```
+
 ## 外键的使用
 
 演示
