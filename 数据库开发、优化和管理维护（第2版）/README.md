@@ -693,3 +693,52 @@ root@ubuntu-test:/var/lib/mysql/mydb# du -sh *
 ```
 
 - [What does “Table does not support optimize, doing recreate + analyze instead” mean?](https://stackoverflow.com/questions/30635603/what-does-table-does-not-support-optimize-doing-recreate-analyze-instead-me)
+
+**使用散列值作为检索列**
+
+```sql
+mysql> create table demo (id int, content text, md5 varchar(40));
+Query OK, 0 rows affected (0.01 sec
+
+mysql> insert into demo values (1, repeat('suhua', 100), md5(repeat('suhua', 100)));
+Query OK, 1 row affected (0.00 sec)
+
+mysql> insert into demo values (2, repeat('xiaozhang', 100), md5(repeat('xiaozhang', 100)));
+Query OK, 1 row affected (0.01 sec)
+
+mysql> insert into demo values (3, repeat('google', 100), md5(repeat('google', 100)));
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select id, md5 from demo where md5 = md5(repeat('xiaozhang', 100));
++------+----------------------------------+
+| id   | md5                              |
++------+----------------------------------+
+|    2 | 5849da3cfd1f02015edf52eabfe3cd21 |
++------+----------------------------------+
+1 row in set (0.00 sec)
+
+mysql> alter table demo add index idx1 (content(100));
+Query OK, 0 rows affected (0.05 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> show create table demo\G
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `id` int(11) DEFAULT NULL,
+  `content` text COLLATE utf8mb4_unicode_ci,
+  `md5` varchar(40) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  KEY `idx1` (`content`(100))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+1 row in set (0.00 sec)
+
+mysql> select id, md5 from demo where content like "xiaozhang%";
++------+----------------------------------+
+| id   | md5                              |
++------+----------------------------------+
+|    2 | 5849da3cfd1f02015edf52eabfe3cd21 |
++------+----------------------------------+
+1 row in set (0.00 sec)
+```
+
+
