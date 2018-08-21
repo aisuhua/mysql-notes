@@ -741,4 +741,89 @@ mysql> select id, md5 from demo where content like "xiaozhang%";
 1 row in set (0.00 sec)
 ```
 
+## 如何选择字符集
 
+## 查看字符集
+
+```sql
+show character set
+show collations
+
+desc information_schema.character_sets
+select * from information_schema.character_sets
+```
+
+## 修改字符集
+
+数据库服务器、数据库、表、字段的字符编码都可以进行修改。
+
+```
+# 修改字符集和校对规则
+[mysqld]
+character_set_server = utf8mb4
+collation_server = utf8mb4_unicode_ci
+
+[mysql]
+default-character-set=utf8mb4
+
+# 重启服务
+service mysql restart
+
+# 查看修改后的情况
+mysql> show variables like "character%";
++--------------------------+----------------------------+
+| Variable_name            | Value                      |
++--------------------------+----------------------------+
+| character_set_client     | utf8mb4                    |
+| character_set_connection | utf8mb4                    |
+| character_set_database   | utf8mb4                    |
+| character_set_filesystem | binary                     |
+| character_set_results    | utf8mb4                    |
+| character_set_server     | utf8mb4                    |
+| character_set_system     | utf8                       |
+| character_sets_dir       | /usr/share/mysql/charsets/ |
++--------------------------+----------------------------+
+8 rows in set (0.00 sec)
+
+mysql> show variables like "collation%";
++----------------------+--------------------+
+| Variable_name        | Value              |
++----------------------+--------------------+
+| collation_connection | utf8mb4_general_ci |
+| collation_database   | utf8mb4_unicode_ci |
+| collation_server     | utf8mb4_unicode_ci |
++----------------------+--------------------+
+3 rows in set (0.00 sec)
+
+# 在命令行中设置连接字符集
+mysql> set names utf8;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> show variables like "character%";
++--------------------------+----------------------------+
+| Variable_name            | Value                      |
++--------------------------+----------------------------+
+| character_set_client     | utf8                       |
+| character_set_connection | utf8                       |
+| character_set_database   | utf8mb4                    |
+| character_set_filesystem | binary                     |
+| character_set_results    | utf8                       |
+| character_set_server     | utf8mb4                    |
+| character_set_system     | utf8                       |
+| character_sets_dir       | /usr/share/mysql/charsets/ |
++--------------------------+----------------------------+
+
+mysql> show variables like "collation%";
++----------------------+--------------------+
+| Variable_name        | Value              |
++----------------------+--------------------+
+| collation_connection | utf8_general_ci    |
+| collation_database   | utf8mb4_unicode_ci |
+| collation_server     | utf8mb4_unicode_ci |
++----------------------+--------------------+
+3 rows in set (0.00 sec)
+```
+
+- [10.4 Connection Character Sets and Collations](https://dev.mysql.com/doc/refman/5.7/en/charset-connection.html)
+- [5.1.7 Server System Variables](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html)
+- [Change MySQL default character set to UTF-8 in my.cnf?](https://stackoverflow.com/questions/3513773/change-mysql-default-character-set-to-utf-8-in-my-cnf)

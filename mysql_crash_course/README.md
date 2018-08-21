@@ -988,3 +988,6 @@ ACID特性
 - 如何快速导入数据？关闭自动提交，删除索引
 - 如何查看当前数据库设置、状态？
 - [7.4.5.1 Making a Copy of a Database](https://dev.mysql.com/doc/refman/5.7/en/mysqldump-copying-database.html)
+- 如何在线给数据表增加一个字段、添加索引（不影响业务）？
+[1](http://seanlook.com/2016/05/24/mysql-online-ddl-concept/)、
+[2](https://dev.mysql.com/doc/refman/5.7/en/innodb-online-ddl.html)
