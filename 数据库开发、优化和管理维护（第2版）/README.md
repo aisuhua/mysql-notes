@@ -1162,7 +1162,15 @@ collation_connection: utf8mb4_general_ci
 
 ## 存储过程
 
-查看存储过程
+- 存储过程 Procedure
+- 函数 Function
+- 游标 Cursor
+- 循环 Loop
+- 条件判断（流程控制）Flow Control
+- 条件控制 Condition Handling
+- 变量 Var
+
+### 查看存储过程
 
 ```sql
 # 查看所有存储过程
@@ -1206,3 +1214,97 @@ collation_connection: utf8mb4_general_ci
 
 # 函数的查询方法跟上面类似
 ```
+
+- [13.1.16 CREATE PROCEDURE and CREATE FUNCTION Syntax](https://dev.mysql.com/doc/refman/5.7/en/create-procedure.html)
+- [13.6.4.1 Local Variable DECLARE Syntax](https://dev.mysql.com/doc/refman/5.7/en/declare-local-variable.html)
+- [13.7.4 SET Syntax](https://dev.mysql.com/doc/refman/5.7/en/set-statement.html)
+- [13.6.6 Cursors](https://dev.mysql.com/doc/refman/5.7/en/cursors.html)
+- [13.6.5 Flow Control Statements](https://dev.mysql.com/doc/refman/5.7/en/flow-control-statements.html)
+- [13.6.7 Condition Handling](https://dev.mysql.com/doc/refman/5.7/en/condition-handling.html)
+
+## 事件调度器
+
+可以让数据库按自定义的时间周期触发某种操作，可以理解为时间触发器，类似 Linux 系统下的任务调度器 crontab。
+
+```sql
+# 创建调度器
+mysql> create event myevent ON schedule every 5 second do insert into demo values (1);
+Query OK, 0 rows affected (0.00 sec)
+
+# 开启事件调度器服务
+mysql> show variables like "%scheduler%";
++-----------------+-------+
+| Variable_name   | Value |
++-----------------+-------+
+| event_scheduler | OFF   |
++-----------------+-------+
+1 row in set (0.00 sec)
+
+mysql> set GLOBAL event_scheduler = 1;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> show variables like "%scheduler%";
++-----------------+-------+
+| Variable_name   | Value |
++-----------------+-------+
+| event_scheduler | ON    |
++-----------------+-------+
+1 row in set (0.00 sec)
+
+# 每隔5秒添加一条记录
+mysql> select * from demo;
++------+
+| id   |
++------+
+|    1 |
++------+
+2 rows in set (0.00 sec)
+
+# 查看运行状态
+mysql> show processlist;
++----+-----------------+-----------+------+---------+------+-----------------------------+------------------+
+| Id | User            | Host      | db   | Command | Time | State                       | Info             |
++----+-----------------+-----------+------+---------+------+-----------------------------+------------------+
+|  3 | root            | localhost | mydb | Query   |    0 | starting                    | show processlist |
+|  4 | event_scheduler | localhost | NULL | Daemon  |    5 | Waiting for next activation | NULL             |
++----+-----------------+-----------+------+---------+------+-----------------------------+------------------+
+2 rows in set (0.00 sec)
+
+# 停止触发器
+mysql> alter event myevent disable;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> show processlist;
++----+-----------------+-----------+------+---------+------+------------------------+------------------+
+| Id | User            | Host      | db   | Command | Time | State                  | Info             |
++----+-----------------+-----------+------+---------+------+------------------------+------------------+
+|  3 | root            | localhost | mydb | Query   |    0 | starting               | show processlist |
+|  4 | event_scheduler | localhost | NULL | Daemon  |   65 | Waiting on empty queue | NULL             |
++----+-----------------+-----------+------+---------+------+------------------------+------------------+
+2 rows in set (0.00 sec)
+
+# 删除触发器
+drop event myevent;
+```
+
+**优势**
+
+MySQL 时间调度器部署在数据库内部由 DBA 或专人统一维护和管理，避免将一些数据库相关的定时任务部署在操作系统层，
+减少操作系统管理员产生误操作的风险，对后续的管理和维护也非常有益。例如，后续进行数据库迁移时无需再迁移操作系统层的定时任务，
+数据库迁移本身已经包含了调度事件的迁移。
+
+**使用场景**
+
+事件调度器适用于定时收集统计信息，定期清理历史数据，定期数据库检查（例如，自动监控和恢复 Slave 失败进程）
+
+**注意事项**
+
+- 在繁忙且要求性能的数据库服务器上要慎重部署和启用调度器；
+- 过于复杂的处理更适合应用程序实现；
+- 开启和关闭时间调度器需要具有超级用户权限。
+
+- [13.1.12 CREATE EVENT Syntax](https://dev.mysql.com/doc/refman/5.7/en/create-event.html)
+
+需要强调的是，存储过程和函数的优势是可以将数据的处理放在数据库服务器上进行，避免将大量的结果集传输给客户端，
+减少数据的传输，但是在数据库服务器上进行大量的复杂运算也占用服务器的 CPU，造成数据库服务器的压力，
+所以，不要在存储过程和函数中进行大量的复杂运算，应尽量地将这些运算操作分摊在应用服务器上执行。
