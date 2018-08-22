@@ -800,6 +800,7 @@ mysql> show variables like "collation%";
 mysql> set names utf8;
 Query OK, 0 rows affected (0.00 sec)
 
+# 会影响到 character_set_client、character_set_connection 和 character_set_results
 mysql> show variables like "character%";
 +--------------------------+----------------------------+
 | Variable_name            | Value                      |
