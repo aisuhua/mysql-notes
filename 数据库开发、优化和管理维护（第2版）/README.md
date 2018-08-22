@@ -1308,3 +1308,61 @@ MySQL 时间调度器部署在数据库内部由 DBA 或专人统一维护和管
 需要强调的是，存储过程和函数的优势是可以将数据的处理放在数据库服务器上进行，避免将大量的结果集传输给客户端，
 减少数据的传输，但是在数据库服务器上进行大量的复杂运算也占用服务器的 CPU，造成数据库服务器的压力，
 所以，不要在存储过程和函数中进行大量的复杂运算，应尽量地将这些运算操作分摊在应用服务器上执行。
+
+## 触发器
+
+```sql
+mysql> create table `demo_copy` (id int, name varchar(10));
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> create table demo_copy like demo;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> create trigger new_demo after insert on demo for each row insert into demo_copy values (NEW.id, NEW.name);
+Query OK, 0 rows affected (0.06 sec)
+
+mysql> show triggers\G
+*************************** 1. row ***************************
+             Trigger: new_demo
+               Event: INSERT
+               Table: demo
+           Statement: insert into demo_copy values (NEW.id, NEW.name)
+              Timing: AFTER
+             Created: 2018-08-22 11:55:55.02
+            sql_mode: ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+             Definer: root@localhost
+character_set_client: utf8mb4
+collation_connection: utf8mb4_general_ci
+  Database Collation: utf8mb4_unicode_ci
+1 row in set (0.00 sec)
+
+mysql> insert into demo values (1, 'suhua');
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from demo_copy;
++------+-------+
+| id   | name  |
++------+-------+
+|    1 | suhua |
++------+-------+
+1 row in set (0.00 sec)
+
+mysql> insert into demo values (2, 'xiaozhang');
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from demo_copy;
++------+-----------+
+| id   | name      |
++------+-----------+
+|    1 | suhua     |
+|    2 | xiaozhang |
++------+-----------+
+2 rows in set (0.00 sec)
+
+# 查看触发器
+mysql> show triggers\G
+
+mysql> select * from information_schema.triggers where trigger_name = 'new_demo'\G
+```
+
+- [13.1.20 CREATE TRIGGER Syntax](https://dev.mysql.com/doc/refman/5.7/en/create-trigger.html)
