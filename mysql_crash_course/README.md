@@ -991,4 +991,5 @@ ACID特性
 - 如何在线给数据表增加一个字段、添加索引（不影响业务）？
 [1](http://seanlook.com/2016/05/24/mysql-online-ddl-concept/)、
 [2](https://dev.mysql.com/doc/refman/5.7/en/innodb-online-ddl.html)
--  set autocommit = {1 | 0} 和 start transaction 的区别？
+- set autocommit = {1 | 0} 和 start transaction 的区别？
+- MySQL 中的锁机制？
