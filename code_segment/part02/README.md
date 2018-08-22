@@ -25,6 +25,22 @@ CREATE TABLE files (
 ) ENGINE InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
+## 克隆表
+
+- LIKE
+
+```sql
+CREATE TABLE new_tbl LIKE orig_tbl;
+```
+
+- [AS] query_expression
+
+```sql
+CREATE TABLE new_tbl AS SELECT * FROM orig_tbl;
+```
+
+- [Cloning or Copying a Table](https://dev.mysql.com/doc/refman/5.7/en/create-table.html#create-table-clone-copy)
+
 ## 修改表
 
 - 重命名表

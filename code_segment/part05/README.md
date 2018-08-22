@@ -33,7 +33,13 @@ TABLE_COLLATION: utf8mb4_general_ci
 show table status like "city"\G
 ```
 
-## 如何修改 auto_increment 当前的自动增量初始值和步长？
+## 修改表当前的 auto_increment 值
+
+```sql
+ALTER TABLE demo AUTO_INCREMENT = 13;
+```
+
+## 如何修改 auto_increment 默认的自动增量初始值和步长？
 
 ```sql
 # 修改初始值
