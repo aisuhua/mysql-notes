@@ -85,4 +85,29 @@ mysql> select * from demo;
 2 rows in set (0.00 sec)
 ```
 
+## 查看系统状态
+
+``` sql
+# 服务器状态
+mysql> show status;
+
+# 当前字符集
+mysql> show variables like "character%";
+
+# 当前校对集
+mysql> show variables like "collation%";
+
+# 当前默认引擎
+mysql> show engines;
+
+# 自动提交是否开启
+mysql> show variables like "autocommit";
+
+# 运行模式
+mysql> show variables like "sql_mode";
+
+# 事件调度器服务是否开启
+mysql> show variables like "event_scheduler";
+```
+
 - [16.1.6.2 Replication Master Options and Variables](https://dev.mysql.com/doc/refman/5.7/en/replication-options-master.html#sysvar_auto_increment_increment)

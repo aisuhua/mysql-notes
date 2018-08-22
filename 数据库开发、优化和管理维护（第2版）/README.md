@@ -1270,7 +1270,7 @@ mysql> show processlist;
 +----+-----------------+-----------+------+---------+------+-----------------------------+------------------+
 2 rows in set (0.00 sec)
 
-# 停止触发器
+# 停止调度器
 mysql> alter event myevent disable;
 Query OK, 0 rows affected (0.00 sec)
 
@@ -1283,7 +1283,7 @@ mysql> show processlist;
 +----+-----------------+-----------+------+---------+------+------------------------+------------------+
 2 rows in set (0.00 sec)
 
-# 删除触发器
+# 删除调度器
 drop event myevent;
 ```
 
@@ -1465,6 +1465,14 @@ ERROR 1406 (22001): Data too long for column 'name' at row 1
 mysql> set @@sql_mode = 'ANSI';
 Query OK, 0 rows affected, 1 warning (0.00 sec)
 
+mysql> select @@sql_mode;
++--------------------------------------------------------------------------------+
+| @@sql_mode                                                                     |
++--------------------------------------------------------------------------------+
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI |
++--------------------------------------------------------------------------------+
+1 row in set (0.00 sec)
+
 mysql> insert into demo values (1, 'aaaaaaaaaaaaaaaaaaaaaaaaa');
 Query OK, 1 row affected, 1 warning (0.06 sec)
 
@@ -1483,7 +1491,7 @@ mysql> insert into demo values (1, 'aaaaaaaaaaaaaaaaaaaaaaaaa');
 ERROR 1406 (22001): Data too long for column 'name' at row 1
 ```
 
-反斜杠不解释为专义字符而直接存储
+再举例，通过修改 SQL 模型，SQL语句里的反斜杠可不看作转义字符而直接存储。
 
 ```sql
 mysql> select @@sql_mode;
