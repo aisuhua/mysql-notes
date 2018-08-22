@@ -1429,8 +1429,137 @@ mysql> select * from demo;
 
 - [13.3 Transactional and Locking Statements](https://dev.mysql.com/doc/refman/5.7/en/sql-syntax-transactions.html)
 
+## SQL注入
 
+使用预处理和绑定机制实现。
 
+## SQL mode 模式
+
+在 MySQL 中，SQL Mode 常用来解决下面几类问题。
+
+- 通过设置 SQL Mode，可以完成不同严格程度的校验，有效地保障了数据准确性。
+- 通过设置 SQL Mode 为 ANSI 模式，来保证大多数 SQL 符合标准的 SQL 语法，这样应用在不同数据库中进行迁移时，则不需要对业务进行较大修改。
+- 在不同数据库之间进行数据迁移之前，通过设置 SQL Mode 可以使 MySQL 上的数据更方便地迁移到目标数据库中。
+
+```sql
+mysql> select @@sql_mode;
++-------------------------------------------------------------------------------------------------------------------------------------------+
+| @@sql_mode                                                                                                                                |
++-------------------------------------------------------------------------------------------------------------------------------------------+
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION |
++-------------------------------------------------------------------------------------------------------------------------------------------+
+1 row in set (0.00 sec)
+
+mysql> desc demo;
++-------+-------------+------+-----+---------+-------+
+| Field | Type        | Null | Key | Default | Extra |
++-------+-------------+------+-----+---------+-------+
+| id    | int(11)     | NO   | PRI | NULL    |       |
+| name  | varchar(10) | YES  |     | NULL    |       |
++-------+-------------+------+-----+---------+-------+
+2 rows in set (0.00 sec)
+
+mysql> insert into demo values (1, 'aaaaaaaaaaaaaaaaaaaaaaaaa');
+ERROR 1406 (22001): Data too long for column 'name' at row 1
+
+mysql> set @@sql_mode = 'ANSI';
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+mysql> insert into demo values (1, 'aaaaaaaaaaaaaaaaaaaaaaaaa');
+Query OK, 1 row affected, 1 warning (0.06 sec)
+
+mysql> select * from demo;
++----+------------+
+| id | name       |
++----+------------+
+|  1 | aaaaaaaaaa |
++----+------------+
+1 row in set (0.00 sec)
+
+mysql> set @@sql_mode = 'TRADITIONAL';
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+mysql> insert into demo values (1, 'aaaaaaaaaaaaaaaaaaaaaaaaa');
+ERROR 1406 (22001): Data too long for column 'name' at row 1
+```
+
+反斜杠不解释为专义字符而直接存储
+
+```sql
+mysql> select @@sql_mode;
++--------------------------------------------------------------------------------+
+| @@sql_mode                                                                     |
++--------------------------------------------------------------------------------+
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI |
++--------------------------------------------------------------------------------+
+1 row in set (0.00 sec)
+
+mysql> insert into demo values (2, '\abc');
+Query OK, 1 row affected (0.05 sec)
+
+mysql> select * from demo;
++----+------------+
+| id | name       |
++----+------------+
+|  1 | aaaaaaaaaa |
+|  2 | abc        |
++----+------------+
+2 rows in set (0.00 sec)
+
+# 添加 NO_BACKSLASH_ESCAPES 模式
+mysql> set @@sql_mode = 'REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI,NO_BACKSLASH_ESCAPES';
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> insert into demo values (3, '\abc');
+Query OK, 1 row affected (0.05 sec)
+
+mysql> select * from demo;
++----+------------+
+| id | name       |
++----+------------+
+|  1 | aaaaaaaaaa |
+|  2 | abc        |
+|  3 | \abc       |
++----+------------+
+3 rows in set (0.00 sec)
+```
+
+常见的模式组合为：ANSI、STRICT_TRANS_TABLES、TRADITIONAL。其中 STRICT_TRANS_TABLES 和 TRADITIONAL 都是严格模式。
+
+```sql
+mysql> set @@sql_mode = 'ANSI';
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+mysql> select @@sql_mode;
++--------------------------------------------------------------------------------+
+| @@sql_mode                                                                     |
++--------------------------------------------------------------------------------+
+| REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI |
++--------------------------------------------------------------------------------+
+1 row in set (0.00 sec)
+
+mysql> set @@sql_mode = 'TRADITIONAL';
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+mysql> select @@sql_mode;
++------------------------------------------------------------------------------------------------------------------------------------------------------+
+| @@sql_mode                                                                                                                                           |
++------------------------------------------------------------------------------------------------------------------------------------------------------+
+| STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION |
++------------------------------------------------------------------------------------------------------------------------------------------------------+
+1 row in set (0.00 sec)
+```
+
+SQL Mode 也被用于数据库的迁移。如果 MySQL 与其他数据库之间有异构的数据迁移需求，那么 MySQL 中提供的数据库组合模式就会对数据库迁移过程有所帮助。
+
+MySQL 提供了很多数据库的组合模式名称，例如 “ORACLE”、“DB2” 等，这些模式组合由很小的 sql_mode 组合而成，
+在异构数据库之间迁移数据时可以尝试使用这些模式来导出适合于目标数据库格式的数据，这样使得导出数据更容易导入目标数据库。
+
+- SQL Mode 的“严格模式”为 MySQL 提供了很多的数据校验功能，保证了数据准确性，TRADITIONAL 和 STRICT_TRANS_TABLES 是常用的两种严格模式。
+- SQL Mode 的多种模式可以灵活组合，组合后的模式可以更好的满足应用程序的需求，尤其是在数据迁移中，SQL Mode 尤为重要。
+
+- [5.1.10 Server SQL Modes](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html)
+- [13.7.4.1 SET Syntax for Variable Assignment](https://dev.mysql.com/doc/refman/5.7/en/set-variable.html)
 
 
 
