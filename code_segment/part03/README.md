@@ -15,11 +15,11 @@ CREATE TABLE `u_user_cid` (
 创建函数
 
 ```sql
-CREATE FUNCTION `get_cid`(user_id int) RETURNS int(11)
+CREATE FUNCTION `get_cid`(uid int) RETURNS int(11)
 begin
 
     declare result  int unsigned;
-    UPDATE u_user_cid set cid=last_insert_id(cid+1) where user_id=user_id;
+    UPDATE u_user_cid set cid=last_insert_id(cid+1) where user_id=uid;
     set result = last_insert_id();
     return result;
 end

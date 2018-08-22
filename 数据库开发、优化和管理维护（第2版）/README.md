@@ -1159,3 +1159,50 @@ character_set_client: utf8mb4
 collation_connection: utf8mb4_general_ci
 1 row in set (0.00 sec)
 ```
+
+## 存储过程
+
+查看存储过程
+
+```sql
+# 查看所有存储过程
+show procedure status
+
+# 查看特定名称的存储过程
+mysql> show procedure status like 'getall';
++------+--------+-----------+----------------+---------------------+---------------------+---------------+---------+----------------------+----------------------+--------------------+
+| Db   | Name   | Type      | Definer        | Modified            | Created             | Security_type | Comment | character_set_client | collation_connection | Database Collation |
++------+--------+-----------+----------------+---------------------+---------------------+---------------+---------+----------------------+----------------------+--------------------+
+| mydb | getall | PROCEDURE | root@localhost | 2018-08-22 10:00:27 | 2018-08-22 10:00:27 | DEFINER       |         | utf8mb4              | utf8mb4_general_ci   | utf8mb4_unicode_ci |
++------+--------+-----------+----------------+---------------------+---------------------+---------------+---------+----------------------+----------------------+--------------------+
+1 row in set (0.00 sec)
+
+# 通过 information_schema.routines 表查看
+select * from information_schema.routines where ROUTINE_NAME = 'getall'\G;
+
+# 查看特定数据库的全部存储过程
+mysql> show procedure status where db = 'mydb';
++------+--------+-----------+----------------+---------------------+---------------------+---------------+---------+----------------------+----------------------+--------------------+
+| Db   | Name   | Type      | Definer        | Modified            | Created             | Security_type | Comment | character_set_client | collation_connection | Database Collation |
++------+--------+-----------+----------------+---------------------+---------------------+---------------+---------+----------------------+----------------------+--------------------+
+| mydb | getall | PROCEDURE | root@localhost | 2018-08-22 10:00:27 | 2018-08-22 10:00:27 | DEFINER       |         | utf8mb4              | utf8mb4_general_ci   | utf8mb4_unicode_ci |
++------+--------+-----------+----------------+---------------------+---------------------+---------------+---------+----------------------+----------------------+--------------------+
+1 row in set (0.00 sec)
+
+# 查看所有存储过程和函数
+select * from information_schema.routines where ROUTINE_SCHEMA = 'mydb'\G;
+
+# 查看存储过程的定义
+mysql> show create procedure getall\G
+*************************** 1. row ***************************
+           Procedure: getall
+            sql_mode: ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+    Create Procedure: CREATE DEFINER=`root`@`localhost` PROCEDURE `getall`(IN id INT)
+begin select * from demo where id = id ;  end
+character_set_client: utf8mb4
+collation_connection: utf8mb4_general_ci
+  Database Collation: utf8mb4_unicode_ci
+1 row in set (0.00 sec)
+
+# 函数的查询方法跟上面类似
+```
