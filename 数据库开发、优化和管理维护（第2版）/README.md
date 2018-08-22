@@ -1366,3 +1366,71 @@ mysql> select * from information_schema.triggers where trigger_name = 'new_demo'
 ```
 
 - [13.1.20 CREATE TRIGGER Syntax](https://dev.mysql.com/doc/refman/5.7/en/create-trigger.html)
+
+## 事务
+
+savepoint
+
+```sql
+mysql> select * from demo;
+8 rows in set (0.00 sec)
+
+mysql> start transaction;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> insert into demo values (1, 'aaa');
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from demo;
++----+-----------+
+| id | name      |
++----+-----------+
+|  1 | aaa       |
++----+-----------+
+1 rows in set (0.00 sec)
+
+mysql> savepoint aaa;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> insert into demo values (2, 'bbb');
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from demo;
++----+-----------+
+| id | name      |
++----+-----------+
+|  1 | aaa       |
+|  2 | bbb       |
++----+-----------+
+10 rows in set (0.00 sec)
+
+mysql> rollback to aaa;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> select * from demo;
++----+-----------+
+| id | name      |
++----+-----------+
+|  1 | aaa       |
++----+-----------+
+9 rows in set (0.00 sec)
+
+mysql> commit;
+Query OK, 0 rows affected (0.05 sec)
+
+mysql> select * from demo;
++----+-----------+
+| id | name      |
++----+-----------+
+|  1 | aaa       |
++----+-----------+
+9 rows in set (0.00 sec)
+```
+
+
+
+
+
+
+
+
