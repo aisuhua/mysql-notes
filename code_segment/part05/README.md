@@ -85,6 +85,8 @@ mysql> select * from demo;
 2 rows in set (0.00 sec)
 ```
 
+- [16.1.6.2 Replication Master Options and Variables](https://dev.mysql.com/doc/refman/5.7/en/replication-options-master.html#sysvar_auto_increment_increment)
+
 ## 查看系统状态
 
 ``` sql
@@ -108,6 +110,22 @@ mysql> show variables like "sql_mode";
 
 # 事件调度器服务是否开启
 mysql> show variables like "event_scheduler";
+
+# 外键检测是否开启
+mysql> show variables like "foreign_key_checks%";
 ```
 
-- [16.1.6.2 Replication Master Options and Variables](https://dev.mysql.com/doc/refman/5.7/en/replication-options-master.html#sysvar_auto_increment_increment)
+## 修改系统配置（变量）
+
+```sql
+# 修改会话配置
+set @@sql_mode = 'ANSI'
+set session sql_mode = 'ANSI'
+
+# 修改全局配置（数据库重启后无效）
+set GLOBAL sql_mode = 'ANSI'
+
+# 修改 my.conf
+[mysqld]
+sql_mode = ANSI
+```
