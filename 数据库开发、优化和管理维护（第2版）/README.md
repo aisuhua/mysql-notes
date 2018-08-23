@@ -2041,3 +2041,15 @@ mysql> select mod(23, 4);
 
 - [22.2.4 HASH Partitioning](https://dev.mysql.com/doc/refman/5.7/en/partitioning-hash.html)
 - [22.3 Partition Management](https://dev.mysql.com/doc/refman/5.7/en/partitioning-management.html)
+
+将分区后的文件存在不同的硬盘
+
+```sql
+create table demo (id int, name varchar(20)) engine innodb
+partition by range(id) (
+    partition p0 values less than (5) DATA DIRECTORY = '/www/web/' ENGINE = InnoDB,
+    partition p1 values less than (10),
+    partition p2 values less than (15),
+    partition p3 values less than MAXVALUE
+);
+```
