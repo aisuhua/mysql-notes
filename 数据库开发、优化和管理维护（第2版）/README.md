@@ -1570,6 +1570,474 @@ MySQL 提供了很多数据库的组合模式名称，例如 “ORACLE”、“D
 - [13.7.4.1 SET Syntax for Variable Assignment](https://dev.mysql.com/doc/refman/5.7/en/set-variable.html)
 
 
+## 分区表 Partition
 
+查看是否支持分区表
 
+```sh
+mysql> show plugins;
++----------------------------+----------+--------------------+---------+---------+
+| Name                       | Status   | Type               | Library | License |
++----------------------------+----------+--------------------+---------+---------+
+| binlog                     | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| mysql_native_password      | ACTIVE   | AUTHENTICATION     | NULL    | GPL     |
+| sha256_password            | ACTIVE   | AUTHENTICATION     | NULL    | GPL     |
+| PERFORMANCE_SCHEMA         | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| CSV                        | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| MyISAM                     | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| MRG_MYISAM                 | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| InnoDB                     | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| MEMORY                     | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| ARCHIVE                    | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| BLACKHOLE                  | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| partition                  | ACTIVE   | STORAGE ENGINE     | NULL    | GPL     |
+| FEDERATED                  | DISABLED | STORAGE ENGINE     | NULL    | GPL     |
+| ngram                      | ACTIVE   | FTPARSER           | NULL    | GPL     |
++----------------------------+----------+--------------------+---------+---------+
 
+# status 为 active 表示支持
+mysql> select plugin_name as name, plugin_version as version, plugin_status as status
+    -> from information_schema.plugins where plugin_type='storage engine';
++--------------------+---------+----------+
+| name               | version | status   |
++--------------------+---------+----------+
+| binlog             | 1.0     | ACTIVE   |
+| PERFORMANCE_SCHEMA | 0.1     | ACTIVE   |
+| CSV                | 1.0     | ACTIVE   |
+| MyISAM             | 1.0     | ACTIVE   |
+| MRG_MYISAM         | 1.0     | ACTIVE   |
+| InnoDB             | 5.7     | ACTIVE   |
+| MEMORY             | 1.0     | ACTIVE   |
+| ARCHIVE            | 3.0     | ACTIVE   |
+| BLACKHOLE          | 1.0     | ACTIVE   |
+| partition          | 1.0     | ACTIVE   |
+| FEDERATED          | 1.0     | DISABLED |
++--------------------+---------+----------+
+```
+
+- 四种分区方式：range、list、hash 和 key
+- range、list 和 hash 只支持数值型分区建
+- 按列分区，支持单列或者多列，并且支持非数值：range columns 和 list columns
+- 常规分区和线性分区：linear hash 和 linear key
+- 子分区，对分区进行二次分区：Subpartitioning
+- 分区管理：新增分区、删除分区、合并分区、拆分分区
+- 分区键的限制：该键必须出现在所有的主键和唯一建中（如果该表有主键或唯一键）
+
+### range 分区演示
+
+```sql
+create table demo (id int, name varchar(20))
+partition by range(id) (
+    partition p0 values less than (5),
+    partition p1 values less than (10),
+    partition p2 values less than (15),
+    partition p3 values less than MAXVALUE
+);
+
+mysql> show create table demo\G
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `id` int(11) DEFAULT NULL,
+  `name` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+/*!50100 PARTITION BY RANGE (id)
+(PARTITION p0 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (15) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+1 row in set (0.00 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| RANGE            | p0             | id                   | 5                     |          0 |
+| RANGE            | p1             | id                   | 10                    |          0 |
+| RANGE            | p2             | id                   | 15                    |          0 |
+| RANGE            | p3             | id                   | MAXVALUE              |          0 |
++------------------+----------------+----------------------+-----------------------+------------+
+4 rows in set (0.00 sec)
+
+mysql> insert into demo values (1, 'suhua');
+Query OK, 1 row affected (0.06 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| RANGE            | p0             | id                   | 5                     |          1 |
+| RANGE            | p1             | id                   | 10                    |          0 |
+| RANGE            | p2             | id                   | 15                    |          0 |
+| RANGE            | p3             | id                   | MAXVALUE              |          0 |
++------------------+----------------+----------------------+-----------------------+------------+
+4 rows in set (0.00 sec)
+
+mysql> insert into demo values (10, 'suhua');
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| RANGE            | p0             | id                   | 5                     |          1 |
+| RANGE            | p1             | id                   | 10                    |          0 |
+| RANGE            | p2             | id                   | 15                    |          1 |
+| RANGE            | p3             | id                   | MAXVALUE              |          0 |
++------------------+----------------+----------------------+-----------------------+------------+
+4 rows in set (0.00 sec)
+
+# 查看文件存储信息
+root@ubuntu-test:/var/lib/mysql/mydb# ls
+db.opt  demo.frm  demo#P#p0.ibd  demo#P#p1.ibd  demo#P#p2.ibd  demo#P#p3.ibd
+```
+
+非数值列进行分区（要先转换成数值）
+
+```sql
+create table demo (id int, name varchar(20), separated DATE NOT NULL DEFAULT '9999-12-31')
+partition by range(year(separated)) (
+    partition p0 values less than (1990),
+    partition p1 values less than (2000),
+    partition p2 values less than (2015)
+);
+
+mysql> show create table demo\G
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `id` int(11) DEFAULT NULL,
+  `name` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `separated` date NOT NULL DEFAULT '9999-12-31'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+/*!50100 PARTITION BY RANGE (year(separated))
+(PARTITION p0 VALUES LESS THAN (1990) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (2000) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = InnoDB) */
+1 row in set (0.00 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| RANGE            | p0             | year(separated)      | 1990                  |          0 |
+| RANGE            | p1             | year(separated)      | 2000                  |          0 |
+| RANGE            | p2             | year(separated)      | 2015                  |          0 |
++------------------+----------------+----------------------+-----------------------+------------+
+3 rows in set (0.00 sec)
+
+mysql> insert into demo values (1, 'suhua', '2013-02-01');
+Query OK, 1 row affected (0.02 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| RANGE            | p0             | year(separated)      | 1990                  |          0 |
+| RANGE            | p1             | year(separated)      | 2000                  |          0 |
+| RANGE            | p2             | year(separated)      | 2015                  |          1 |
++------------------+----------------+----------------------+-----------------------+------------+
+3 rows in set (0.00 sec)
+
+mysql> insert into demo values (2, 'xiaozhang', '1989-02-01');
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| RANGE            | p0             | year(separated)      | 1990                  |          1 |
+| RANGE            | p1             | year(separated)      | 2000                  |          0 |
+| RANGE            | p2             | year(separated)      | 2015                  |          1 |
++------------------+----------------+----------------------+-----------------------+------------+
+3 rows in set (0.00 sec)
+```
+
+- [22.2.1 RANGE Partitioning](https://dev.mysql.com/doc/refman/5.7/en/partitioning-range.html)
+
+查询时的语法
+
+```sql
+mysql> select * from demo;
++------+-----------+------------+
+| id   | name      | separated  |
++------+-----------+------------+
+|    2 | xiaozhang | 1989-02-01 |
+|    1 | suhua     | 2013-02-01 |
++------+-----------+------------+
+2 rows in set (0.00 sec)
+
+# where 条件中没有分区字段标识时，则扫描全部分区
+mysql> explain select * from demo;;
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------+
+|  1 | SIMPLE      | demo  | p0,p1,p2   | ALL  | NULL          | NULL | NULL    | NULL |    2 |   100.00 | NULL  |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> select * from demo where separated = '1989-02-01';
++------+-----------+------------+
+| id   | name      | separated  |
++------+-----------+------------+
+|    2 | xiaozhang | 1989-02-01 |
++------+-----------+------------+
+1 row in set (0.00 sec)
+
+# 实际上已经只扫描一个分区
+mysql> explain select * from demo where separated = '1989-02-01';
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra       |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | demo  | p0         | ALL  | NULL          | NULL | NULL    | NULL |    1 |   100.00 | Using where |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+```
+
+指定只查询特定分区
+
+```sql
+mysql> explain select * from demo;
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------+
+|  1 | SIMPLE      | demo  | p0,p1,p2   | ALL  | NULL          | NULL | NULL    | NULL |    2 |   100.00 | NULL  |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select * from demo PARTITION (p0, p1);
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------+
+|  1 | SIMPLE      | demo  | p0,p1      | ALL  | NULL          | NULL | NULL    | NULL |    1 |   100.00 | NULL  |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------+
+1 row in set, 1 warning (0.01 sec)
+```
+
+- [22.5 Partition Selection](https://dev.mysql.com/doc/refman/5.7/en/partitioning-selection.html)
+
+### list 分区
+
+演示
+
+```sql
+create table demo (id int, name varchar(20))
+partition by list(id) (
+    partition p0 values in (1, 3, 5, 7, 9),
+    partition p1 values in (2, 4, 6, 8, 0)
+);
+
+mysql> show create table demo\G
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `id` int(11) DEFAULT NULL,
+  `name` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+/*!50100 PARTITION BY LIST (id)
+(PARTITION p0 VALUES IN (1,3,5,7,9) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (2,4,6,8,0) ENGINE = InnoDB) */
+1 row in set (0.00 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| LIST             | p0             | id                   | 1,3,5,7,9             |          0 |
+| LIST             | p1             | id                   | 2,4,6,8,0             |          0 |
++------------------+----------------+----------------------+-----------------------+------------+
+2 rows in set (0.00 sec)
+
+mysql> insert into demo values (3, 'suhua');
+Query OK, 1 row affected (0.11 sec)
+
+mysql> insert into demo values (5, 'suhua');
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| LIST             | p0             | id                   | 1,3,5,7,9             |          2 |
+| LIST             | p1             | id                   | 2,4,6,8,0             |          0 |
++------------------+----------------+----------------------+-----------------------+------------+
+2 rows in set (0.00 sec)
+
+mysql> insert into demo values (10, 'suhua');
+ERROR 1526 (HY000): Table has no partition for value 10
+mysql> insert into demo values (8, 'suhua');
+Query OK, 1 row affected (0.00 sec)
+
+mysql> insert into demo values (10, 'suhua');
+ERROR 1526 (HY000): Table has no partition for value 10
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| LIST             | p0             | id                   | 1,3,5,7,9             |          2 |
+| LIST             | p1             | id                   | 2,4,6,8,0             |          1 |
++------------------+----------------+----------------------+-----------------------+------------+
+2 rows in set (0.00 sec)
+```
+
+- [22.2.2 LIST Partitioning](https://dev.mysql.com/doc/refman/5.7/en/partitioning-list.html)
+
+## columns 分区
+
+> The next two sections discuss COLUMNS partitioning, which are variants on RANGE and LIST partitioning.
+> COLUMNS partitioning enables the use of multiple columns in partitioning keys.
+> All of these columns are taken into account both for the purpose of placing rows in partitions and for
+> the determination of which partitions are to be checked for matching rows in partition pruning.
+>
+> In addition, both RANGE COLUMNS partitioning and LIST COLUMNS partitioning support the use of non-integer columns
+> for defining value ranges or list members. The permitted data types are shown in the following list:
+
+### range columns
+
+```sql
+create table demo (a int, b int)
+partition by range columns(a, b) (
+    partition p0 values less than (5, 12),
+    partition p1 values less than (MAXVALUE, MAXVALUE)
+);
+
+mysql> show create table demo\G
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+/*!50500 PARTITION BY RANGE  COLUMNS(a,b)
+(PARTITION p0 VALUES LESS THAN (5,12) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (MAXVALUE,MAXVALUE) ENGINE = InnoDB) */
+1 row in set (0.00 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| RANGE COLUMNS    | p0             | `a`,`b`              | 5,12                  |          0 |
+| RANGE COLUMNS    | p1             | `a`,`b`              | MAXVALUE,MAXVALUE     |          0 |
++------------------+----------------+----------------------+-----------------------+------------+
+2 rows in set (0.00 sec)
+
+mysql> insert into demo values (1, 20);
+Query OK, 1 row affected (0.05 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| RANGE COLUMNS    | p0             | `a`,`b`              | 5,12                  |          1 |
+| RANGE COLUMNS    | p1             | `a`,`b`              | MAXVALUE,MAXVALUE     |          0 |
++------------------+----------------+----------------------+-----------------------+------------+
+
+mysql> insert into demo values (10, 20);
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| RANGE COLUMNS    | p0             | `a`,`b`              | 5,12                  |          1 |
+| RANGE COLUMNS    | p1             | `a`,`b`              | MAXVALUE,MAXVALUE     |          1 |
++------------------+----------------+----------------------+-----------------------+------------+
+2 rows in set (0.00 sec)
+
+mysql> select * from demo;
++------+------+
+| a    | b    |
++------+------+
+|    1 |   20 |
+|   10 |   20 |
++------+------+
+2 rows in set (0.00 sec)
+```
+
+- [22.2.3 COLUMNS Partitioning](https://dev.mysql.com/doc/refman/5.7/en/partitioning-columns.html)
+- [MySQL · 最佳实践 · 分区表基本类型](http://mysql.taobao.org/monthly/2017/11/09/)
+
+### list columns
+
+- [22.2.3.2 LIST COLUMNS partitioning](https://dev.mysql.com/doc/refman/5.7/en/partitioning-columns-list.html)
+
+## hash 分区
+
+```sql
+create table demo (id int, name varchar(20))
+partition by hash(id)
+partitions 4;
+
+mysql> show create table demo\G
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `id` int(11) DEFAULT NULL,
+  `name` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+/*!50100 PARTITION BY HASH (id)
+PARTITIONS 4 */
+1 row in set (0.00 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| HASH             | p0             | id                   | NULL                  |          0 |
+| HASH             | p1             | id                   | NULL                  |          0 |
+| HASH             | p2             | id                   | NULL                  |          0 |
+| HASH             | p3             | id                   | NULL                  |          0 |
++------------------+----------------+----------------------+-----------------------+------------+
+4 rows in set (0.00 sec)
+
+# 查看数据表文件
+root@ubuntu-test:/var/lib/mysql/mydb# ls -l
+total 632
+-rw-r----- 1 mysql mysql     67 Aug 16 12:26 db.opt
+-rw-r----- 1 mysql mysql   8586 Aug 23 16:35 demo.frm
+-rw-r----- 1 mysql mysql  98304 Aug 23 16:35 demo#P#p0.ibd
+-rw-r----- 1 mysql mysql  98304 Aug 23 16:35 demo#P#p1.ibd
+-rw-r----- 1 mysql mysql  98304 Aug 23 16:35 demo#P#p2.ibd
+-rw-r----- 1 mysql mysql  98304 Aug 23 16:35 demo#P#p3.ibd
+
+# 插入数据
+mysql> insert into demo values (23, 'xiaozhang');
+Query OK, 1 row affected (0.05 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| HASH             | p0             | id                   | NULL                  |          0 |
+| HASH             | p1             | id                   | NULL                  |          0 |
+| HASH             | p2             | id                   | NULL                  |          0 |
+| HASH             | p3             | id                   | NULL                  |          1 |
++------------------+----------------+----------------------+-----------------------+------------+
+4 rows in set (0.00 sec)
+
+# 通过取模可以确定所在的分区
+mysql> select mod(23, 4);
++------------+
+| mod(23, 4) |
++------------+
+|          3 |
++------------+
+1 row in set (0.00 sec)
+```
+
+- [22.2.4 HASH Partitioning](https://dev.mysql.com/doc/refman/5.7/en/partitioning-hash.html)
+- [22.3 Partition Management](https://dev.mysql.com/doc/refman/5.7/en/partitioning-management.html)
