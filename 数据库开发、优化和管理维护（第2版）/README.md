@@ -2451,3 +2451,252 @@ Query OK, 0 rows affected (0.00 sec)
 
 - [Chapter 8 Tracing the Optimizer](https://dev.mysql.com/doc/internals/en/optimizer-tracing.html)
 - [8.1 Typical Usage](https://dev.mysql.com/doc/internals/en/optimizer-tracing-typical-usage.html)
+
+# 索引问题
+
+创建前缀索引
+
+```sql
+# 对列前面的某一部分进行索引
+# 该类型索引在排序 order by 和分组 group by 操作时无法使用
+alter table demo add index idx1(name(5));
+```
+
+最左前缀原则, 多列索引（复合索引）对索引的使用
+
+```sql
+mysql> show create table demo\G;
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  KEY `idx1` (`a`,`b`,`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+1 row in set (0.00 sec)
+
+mysql> show index from demo;
++-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| Table | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
++-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| demo  |          1 | idx1     |            1 | a           | A         |           0 |     NULL | NULL   | YES  | BTREE      |         |               |
+| demo  |          1 | idx1     |            2 | b           | A         |           0 |     NULL | NULL   | YES  | BTREE      |         |               |
+| demo  |          1 | idx1     |            3 | c           | A         |           0 |     NULL | NULL   | YES  | BTREE      |         |               |
++-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+3 rows in set (0.00 sec)
+
+mysql> insert into demo values (1, 2, 3, 4);
+Query OK, 1 row affected (0.00 sec)
+
+mysql> insert into demo values (2, 3, 4, 5);
+Query OK, 1 row affected (0.00 sec)
+
+mysql> insert into demo values (3, 4, 5, 6);
+Query OK, 1 row affected (0.00 sec)
+
+mysql> insert into demo select * from demo;
+Query OK, 3 rows affected (0.00 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+...
+
+mysql> insert into demo select * from demo;
+Query OK, 98304 rows affected (0.64 sec)
+Records: 98304  Duplicates: 0  Warnings: 0
+
+mysql> select count(*) from demo;
++----------+
+| count(*) |
++----------+
+|   196608 |
++----------+
+1 row in set (0.05 sec)
+
+mysql> explain select * from demo where a = 1;
++----+-------------+-------+------------+------+---------------+------+---------+-------+-------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref   | rows  | filtered | Extra       |
++----+-------------+-------+------------+------+---------------+------+---------+-------+-------+----------+-------------+
+|  1 | SIMPLE      | demo  | NULL       | ref  | idx1          | idx1 | 5       | const | 49207 |   100.00 | NULL        |
++----+-------------+-------+------------+------+---------------+------+---------+-------+-------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select * from demo where a = 1 and b = 2;
++----+-------------+-------+------------+------+---------------+------+---------+-------------+-------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref         | rows  | filtered | Extra       |
++----+-------------+-------+------------+------+---------------+------+---------+-------------+-------+----------+-------------+
+|  1 | SIMPLE      | demo  | NULL       | ref  | idx1          | idx1 | 10      | const,const | 49207 |   100.00 | NULL        |
++----+-------------+-------+------------+------+---------------+------+---------+-------------+-------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select * from demo where a = 1 and b = 2 and c = 3;
++----+-------------+-------+------------+------+---------------+------+---------+-------------------+-------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref               | rows  | filtered | Extra       |
++----+-------------+-------+------------+------+---------------+------+---------+-------------------+-------+----------+-------------+
+|  1 | SIMPLE      | demo  | NULL       | ref  | idx1          | idx1 | 15      | const,const,const | 49207 |   100.00 | NULL        |
++----+-------------+-------+------------+------+---------------+------+---------+-------------------+-------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select * from demo where b = 2 and c = 3;
++----+-------------+-------+------------+------+---------------+------+---------+------+--------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref  | rows   | filtered | Extra       |
++----+-------------+-------+------------+------+---------------+------+---------+------+--------+----------+-------------+
+|  1 | SIMPLE      | demo  | NULL       | ALL  | NULL          | NULL | NULL    | NULL | 196370 |     1.00 | Using where |
++----+-------------+-------+------------+------+---------------+------+---------+------+--------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select * from demo where b = 2;
++----+-------------+-------+------------+------+---------------+------+---------+------+--------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref  | rows   | filtered | Extra       |
++----+-------------+-------+------------+------+---------------+------+---------+------+--------+----------+-------------+
+|  1 | SIMPLE      | demo  | NULL       | ALL  | NULL          | NULL | NULL    | NULL | 196370 |    10.00 | Using where |
++----+-------------+-------+------------+------+---------------+------+---------+------+--------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select * from demo where c = 2;
++----+-------------+-------+------------+------+---------------+------+---------+------+--------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref  | rows   | filtered | Extra       |
++----+-------------+-------+------------+------+---------------+------+---------+------+--------+----------+-------------+
+|  1 | SIMPLE      | demo  | NULL       | ALL  | NULL          | NULL | NULL    | NULL | 196370 |    10.00 | Using where |
++----+-------------+-------+------------+------+---------------+------+---------+------+--------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+```
+
+仅仅对索引进行查询，即 select 的字段都包含在所查询的索引中
+
+```sql
+mysql> explain select a, b, c from demo where a = 1 and b = 2 and c = 3;
++----+-------------+-------+------------+------+---------------+------+---------+-------------------+-------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref               | rows  | filtered | Extra       |
++----+-------------+-------+------------+------+---------------+------+---------+-------------------+-------+----------+-------------+
+|  1 | SIMPLE      | demo  | NULL       | ref  | idx1          | idx1 | 15      | const,const,const | 98185 |   100.00 | Using index |
++----+-------------+-------+------------+------+---------------+------+---------+-------------------+-------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+# Extra 为 Using index 表示该查询只需要读取索引文件即可，不需要通过索引回表，速度更快。（覆盖索引扫描）
+```
+
+- [8.3.5 Multiple-Column Indexes](https://dev.mysql.com/doc/refman/5.7/en/multiple-column-indexes.html)
+
+匹配列前缀
+
+```sql
+mysql> alter table film_text add index idx2 (title(10), description(20));
+Query OK, 0 rows affected (0.06 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> show create table film_text\G
+*************************** 1. row ***************************
+       Table: film_text
+Create Table: CREATE TABLE `film_text` (
+  `film_id` smallint(6) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  PRIMARY KEY (`film_id`),
+  KEY `idx2` (`title`(10),`description`(20)),
+  FULLTEXT KEY `idx_title_description` (`title`,`description`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+1 row in set (0.00 sec)
+
+mysql> explain select title from film_text where title like "AFRICAN%";
++----+-------------+-----------+------------+-------+----------------------------+------+---------+------+------+----------+-------------+
+| id | select_type | table     | partitions | type  | possible_keys              | key  | key_len | ref  | rows | filtered | Extra       |
++----+-------------+-----------+------------+-------+----------------------------+------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | film_text | NULL       | range | idx2,idx_title_description | idx2 | 32      | NULL |    1 |   100.00 | Using where |
++----+-------------+-----------+------------+-------+----------------------------+------+---------+------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+# Extra 为 Using where 表示优化器需要索引回表查询数据。在非前缀索引中，不需要回表查询。
+```
+
+能够实现索引匹配部分精确而其他部分进行范围匹配
+
+```sql
+mysql> show create table rental\G
+*************************** 1. row ***************************
+       Table: rental
+Create Table: CREATE TABLE `rental` (
+  `rental_id` int(11) NOT NULL AUTO_INCREMENT,
+  `rental_date` datetime NOT NULL,
+  `inventory_id` mediumint(8) unsigned NOT NULL,
+  `customer_id` smallint(5) unsigned NOT NULL,
+  `return_date` datetime DEFAULT NULL,
+  `staff_id` tinyint(3) unsigned NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`rental_id`),
+  UNIQUE KEY `rental_date` (`rental_date`,`inventory_id`,`customer_id`),
+  KEY `idx_fk_inventory_id` (`inventory_id`),
+  KEY `idx_fk_customer_id` (`customer_id`),
+  KEY `idx_fk_staff_id` (`staff_id`),
+  CONSTRAINT `fk_rental_customer` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`customer_id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_rental_inventory` FOREIGN KEY (`inventory_id`) REFERENCES `inventory` (`inventory_id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_rental_staff` FOREIGN KEY (`staff_id`) REFERENCES `staff` (`staff_id`) ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=16050 DEFAULT CHARSET=utf8
+1 row in set (0.00 sec)
+
+mysql> explain select inventory_id from rental where rental_date = '2006-02-14 15:16:03' and customer_id >= 300 and customer_id <= 400;
++----+-------------+--------+------------+------+--------------------------------+-------------+---------+-------+------+----------+--------------------------+
+| id | select_type | table  | partitions | type | possible_keys                  | key         | key_len | ref   | rows | filtered | Extra                    |
++----+-------------+--------+------------+------+--------------------------------+-------------+---------+-------+------+----------+--------------------------+
+|  1 | SIMPLE      | rental | NULL       | ref  | rental_date,idx_fk_customer_id | rental_date | 5       | const |  182 |    16.85 | Using where; Using index |
++----+-------------+--------+------------+------+--------------------------------+-------------+---------+-------+------+----------+--------------------------+
+1 row in set, 1 warning (0.00 sec)
+
+# key 为 rental_date 说明优化器选择索引 rental_date 帮助加速查询，同时由于只查询索引字段 inventory_id 的值，
+# 所以在 Extra 部分能看到 Using index，表示查询使用了覆盖索引扫描。
+```
+
+如果列名是索引，那么使用 column name is null 就会使用索引
+
+```sql
+mysql> show create table payment\G
+*************************** 1. row ***************************
+       Table: payment
+Create Table: CREATE TABLE `payment` (
+  `payment_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `customer_id` smallint(5) unsigned NOT NULL,
+  `staff_id` tinyint(3) unsigned NOT NULL,
+  `rental_id` int(11) DEFAULT NULL,
+  `amount` decimal(5,2) NOT NULL,
+  `payment_date` datetime NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`payment_id`),
+  KEY `idx_fk_staff_id` (`staff_id`),
+  KEY `idx_fk_customer_id` (`customer_id`),
+  KEY `fk_payment_rental` (`rental_id`),
+  CONSTRAINT `fk_payment_customer` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`customer_id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_payment_rental` FOREIGN KEY (`rental_id`) REFERENCES `rental` (`rental_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_payment_staff` FOREIGN KEY (`staff_id`) REFERENCES `staff` (`staff_id`) ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=16050 DEFAULT CHARSET=utf8
+1 row in set (0.00 sec)
+
+mysql> explain select * from payment where rental_id is null;
++----+-------------+---------+------------+------+-------------------+-------------------+---------+-------+------+----------+-----------------------+
+| id | select_type | table   | partitions | type | possible_keys     | key               | key_len | ref   | rows | filtered | Extra                 |
++----+-------------+---------+------------+------+-------------------+-------------------+---------+-------+------+----------+-----------------------+
+|  1 | SIMPLE      | payment | NULL       | ref  | fk_payment_rental | fk_payment_rental | 5       | const |    5 |   100.00 | Using index condition |
++----+-------------+---------+------------+------+-------------------+-------------------+---------+-------+------+----------+-----------------------+
+1 row in set, 1 warning (0.00 sec)
+```
+
+MySQL 5.6 引入了 Index Condition Pushdown（ICP）的特征，进一步优化了查询。
+Pushdown 表示操作下放，某些情况下的条件过滤下放在引擎。
+
+```sql
+mysql> explain select * from rental use index (rental_date) where rental_date = '2006-02-14 15:16:03' and customer_id = 355;
++----+-------------+--------+------------+------+---------------+-------------+---------+-------+------+----------+-----------------------+
+| id | select_type | table  | partitions | type | possible_keys | key         | key_len | ref   | rows | filtered | Extra                 |
++----+-------------+--------+------------+------+---------------+-------------+---------+-------+------+----------+-----------------------+
+|  1 | SIMPLE      | rental | NULL       | ref  | rental_date   | rental_date | 5       | const |  182 |     0.17 | Using index condition |
++----+-------------+--------+------------+------+---------------+-------------+---------+-------+------+----------+-----------------------+
+1 row in set, 1 warning (0.00 sec)
+```
+
+复合索引搜索
+
+![Alt text](img/icp01.jpg)
+
+Index Condition Pushdown
+
+![Alt text](img/icp02.jpg)
