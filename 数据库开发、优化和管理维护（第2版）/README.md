@@ -2053,3 +2053,401 @@ partition by range(id) (
     partition p3 values less than MAXVALUE
 );
 ```
+
+## 使用 show status 了解 SQL 的执行频率
+
+```sql
+# 查看增删改查调用次数（所有引擎）
+# 查看事务提交以及回滚的次数
+mysql> show status like "Com%";
++-----------------------------+-------+
+| Variable_name               | Value |
++-----------------------------+-------+
+| Com_select                  | 7     |
+| Com_insert                  | 1017  |
+| Com_update                  | 0     |
+| Com_delete                  | 0     |
+| Com_commit                  | 15    |
+| Com_rollback                | 0     |
+| Com_rollback_to_savepoint   | 0     |
+
+# 查看InnoDB引擎的增删改查调用次数
+mysql> show status like "Innodb%";
++----------------------------------------+----------------------+
+| Variable_name                          | Value                |
++----------------------------------------+----------------------+
+| Innodb_rows_deleted                    | 56191533             |
+| Innodb_rows_inserted                   | 4459556443           |
+| Innodb_rows_read                       | 2621293876509        |
+| Innodb_rows_updated                    | 1042362634           |
+
+# 查看试图连接MySQL服务器的次数
+mysql> show status like "Connections%";
++---------------+---------+
+| Variable_name | Value   |
++---------------+---------+
+| Connections   | 5136685 |
++---------------+---------+
+1 row in set (0.00 sec)
+
+# 服务器已工作时长
+mysql> show status like "Uptime%";
++---------------------------+----------+
+| Variable_name             | Value    |
++---------------------------+----------+
+| Uptime                    | 16996410 |
+| Uptime_since_flush_status | 16996410 |
++---------------------------+----------+
+2 rows in set (0.00 sec)
+
+# 查看慢查询次数
+mysql> show status like "Slow_queries%";
++---------------+-------+
+| Variable_name | Value |
++---------------+-------+
+| Slow_queries  | 0     |
++---------------+-------+
+1 row in set (0.00 sec)
+```
+
+## explain 使用
+
+使用测试数据
+
+```sql
+mysql> create database  sakila;
+mysql> use sakila;
+mysql> source /www/web/sakila-db/sakila-schema.sql
+mysql> source /www/web/sakila-db/sakila-data.sql
+```
+
+使用 explain 优化查询
+
+```sql
+mysql> show index from film;
++-------+------------+-----------------------------+--------------+----------------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| Table | Non_unique | Key_name                    | Seq_in_index | Column_name          | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
++-------+------------+-----------------------------+--------------+----------------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| film  |          0 | PRIMARY                     |            1 | film_id              | A         |        1000 |     NULL | NULL   |      | BTREE      |         |               |
+| film  |          1 | idx_title                   |            1 | title                | A         |        1000 |     NULL | NULL   |      | BTREE      |         |               |
+| film  |          1 | idx_fk_language_id          |            1 | language_id          | A         |        1000 |     NULL | NULL   |      | BTREE      |         |               |
+| film  |          1 | idx_fk_original_language_id |            1 | original_language_id | A         |        1000 |     NULL | NULL   | YES  | BTREE      |         |               |
++-------+------------+-----------------------------+--------------+----------------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+4 rows in set (0.00 sec)
+
+# ALL: 全表扫描
+mysql> explain select * from film where rating > 9;
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra       |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | film  | NULL       | ALL  | NULL          | NULL | NULL    | NULL | 1000 |    33.33 | Using where |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+# index: 只扫描索引文件，当所查询的列刚好是索引时会出现
+mysql> explain select title from film;
++----+-------------+-------+------------+-------+---------------+-----------+---------+------+------+----------+-------------+
+| id | select_type | table | partitions | type  | possible_keys | key       | key_len | ref  | rows | filtered | Extra       |
++----+-------------+-------+------------+-------+---------------+-----------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | film  | NULL       | index | NULL          | idx_title | 767     | NULL | 1000 |   100.00 | Using index |
++----+-------------+-------+------------+-------+---------------+-----------+---------+------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+# 查看索引
+mysql> show index from payment;
++---------+------------+--------------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| Table   | Non_unique | Key_name           | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
++---------+------------+--------------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| payment |          0 | PRIMARY            |            1 | payment_id  | A         |       16086 |     NULL | NULL   |      | BTREE      |         |               |
+| payment |          1 | idx_fk_staff_id    |            1 | staff_id    | A         |           2 |     NULL | NULL   |      | BTREE      |         |               |
+| payment |          1 | idx_fk_customer_id |            1 | customer_id | A         |         599 |     NULL | NULL   |      | BTREE      |         |               |
+| payment |          1 | fk_payment_rental  |            1 | rental_id   | A         |       16045 |     NULL | NULL   | YES  | BTREE      |         |               |
++---------+------------+--------------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+4 rows in set (0.00 sec)
+
+mysql> show index from customer;
++----------+------------+-------------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| Table    | Non_unique | Key_name          | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
++----------+------------+-------------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| customer |          0 | PRIMARY           |            1 | customer_id | A         |         599 |     NULL | NULL   |      | BTREE      |         |               |
+| customer |          1 | idx_fk_store_id   |            1 | store_id    | A         |           2 |     NULL | NULL   |      | BTREE      |         |               |
+| customer |          1 | idx_fk_address_id |            1 | address_id  | A         |         599 |     NULL | NULL   |      | BTREE      |         |               |
+| customer |          1 | idx_last_name     |            1 | last_name   | A         |         599 |     NULL | NULL   |      | BTREE      |         |               |
++----------+------------+-------------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+4 rows in set (0.00 sec)
+
+# range: 对键值进行范围检索时，仅扫描一部分索引文件
+mysql> explain select * from payment where customer_id > 300 and customer_id < 350;
++----+-------------+---------+------------+-------+--------------------+--------------------+---------+------+------+----------+-----------------------+
+| id | select_type | table   | partitions | type  | possible_keys      | key                | key_len | ref  | rows | filtered | Extra                 |
++----+-------------+---------+------------+-------+--------------------+--------------------+---------+------+------+----------+-----------------------+
+|  1 | SIMPLE      | payment | NULL       | range | idx_fk_customer_id | idx_fk_customer_id | 2       | NULL | 1296 |   100.00 | Using index condition |
++----+-------------+---------+------------+-------+--------------------+--------------------+---------+------+------+----------+-----------------------+
+1 row in set, 1 warning (0.00 sec)
+
+# ref: 使用非唯一索引或最左前缀索引检索时会使用到该类型的索引
+mysql> explain select * from payment where customer_id = 350;
++----+-------------+---------+------------+------+--------------------+--------------------+---------+-------+------+----------+-------+
+| id | select_type | table   | partitions | type | possible_keys      | key                | key_len | ref   | rows | filtered | Extra |
++----+-------------+---------+------------+------+--------------------+--------------------+---------+-------+------+----------+-------+
+|  1 | SIMPLE      | payment | NULL       | ref  | idx_fk_customer_id | idx_fk_customer_id | 2       | const |   23 |   100.00 | NULL  |
++----+-------------+---------+------------+------+--------------------+--------------------+---------+-------+------+----------+-------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select customer.*, payment.* from customer, payment where  customer.customer_id = payment.customer_id;
++----+-------------+----------+------------+------+--------------------+--------------------+---------+-----------------------------+------+----------+-------+
+| id | select_type | table    | partitions | type | possible_keys      | key                | key_len | ref                         | rows | filtered | Extra |
++----+-------------+----------+------------+------+--------------------+--------------------+---------+-----------------------------+------+----------+-------+
+|  1 | SIMPLE      | customer | NULL       | ALL  | PRIMARY            | NULL               | NULL    | NULL                        |  599 |   100.00 | NULL  |
+|  1 | SIMPLE      | payment  | NULL       | ref  | idx_fk_customer_id | idx_fk_customer_id | 2       | sakila.customer.customer_id |   26 |   100.00 | NULL  |
++----+-------------+----------+------------+------+--------------------+--------------------+---------+-----------------------------+------+----------+-------+
+2 rows in set, 1 warning (0.00 sec)
+
+# 最左前缀索引示例
+mysql> show create table demo\G
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `id` int(11) NOT NULL,
+  `name` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  KEY `idx1` (`id`,`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+1 row in set (0.00 sec)
+
+mysql> select * from demo where id = 1;
++----+-------+
+| id | name  |
++----+-------+
+|  1 | suhua |
++----+-------+
+1 row in set (0.00 sec)
+
+mysql> explain select * from demo where id = 1;
++----+-------------+-------+------------+------+---------------+------+---------+-------+------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref   | rows | filtered | Extra       |
++----+-------------+-------+------------+------+---------------+------+---------+-------+------+----------+-------------+
+|  1 | SIMPLE      | demo  | NULL       | ref  | idx1          | idx1 | 4       | const |    1 |   100.00 | Using index |
++----+-------------+-------+------------+------+---------------+------+---------+-------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select * from demo where id = 1 and name = 'suhua';
++----+-------------+-------+------------+------+---------------+------+---------+-------------+------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref         | rows | filtered | Extra       |
++----+-------------+-------+------------+------+---------------+------+---------+-------------+------+----------+-------------+
+|  1 | SIMPLE      | demo  | NULL       | ref  | idx1          | idx1 | 47      | const,const |    1 |   100.00 | Using index |
++----+-------------+-------+------------+------+---------------+------+---------+-------------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+# eq_ref: 多表查询时，使用唯一索引检索。即是多表连接使用 primary key 和 unique key 作为关联条件
+mysql> explain select * from film, film_text where film.film_id = film_text.film_id;
++----+-------------+-----------+------------+--------+---------------+---------+---------+--------------------------+------+----------+-------------+
+| id | select_type | table     | partitions | type   | possible_keys | key     | key_len | ref                      | rows | filtered | Extra       |
++----+-------------+-----------+------------+--------+---------------+---------+---------+--------------------------+------+----------+-------------+
+|  1 | SIMPLE      | film_text | NULL       | ALL    | PRIMARY       | NULL    | NULL    | NULL                     | 1000 |   100.00 | NULL        |
+|  1 | SIMPLE      | film      | NULL       | eq_ref | PRIMARY       | PRIMARY | 2       | sakila.film_text.film_id |    1 |   100.00 | Using where |
++----+-------------+-----------+------------+--------+---------------+---------+---------+--------------------------+------+----------+-------------+
+2 rows in set, 1 warning (0.00 sec)
+
+# const: 单表查询中，只有一个匹配行。例如：根据主键 primary key 或者 唯一索引 unique index 进行查询。
+mysql> alter table customer add unique index idx_email(email);
+Query OK, 0 rows affected (0.10 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> show index from customer;
++----------+------------+-------------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| Table    | Non_unique | Key_name          | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
++----------+------------+-------------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| customer |          0 | PRIMARY           |            1 | customer_id | A         |         599 |     NULL | NULL   |      | BTREE      |         |               |
+| customer |          0 | idx_email         |            1 | email       | A         |         599 |     NULL | NULL   | YES  | BTREE      |         |               |
+| customer |          1 | idx_fk_store_id   |            1 | store_id    | A         |           2 |     NULL | NULL   |      | BTREE      |         |               |
+| customer |          1 | idx_fk_address_id |            1 | address_id  | A         |         599 |     NULL | NULL   |      | BTREE      |         |               |
+| customer |          1 | idx_last_name     |            1 | last_name   | A         |         599 |     NULL | NULL   |      | BTREE      |         |               |
++----------+------------+-------------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+5 rows in set (0.00 sec)
+
+mysql> explain select * from customer where email = 'DWIGHT.LOMBARDI@sakilacustomer.org';
++----+-------------+----------+------------+-------+---------------+-----------+---------+-------+------+----------+-------+
+| id | select_type | table    | partitions | type  | possible_keys | key       | key_len | ref   | rows | filtered | Extra |
++----+-------------+----------+------------+-------+---------------+-----------+---------+-------+------+----------+-------+
+|  1 | SIMPLE      | customer | NULL       | const | idx_email     | idx_email | 153     | const |    1 |   100.00 | NULL  |
++----+-------------+----------+------------+-------+---------------+-----------+---------+-------+------+----------+-------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select * from customer where customer_id = 1;
++----+-------------+----------+------------+-------+---------------+---------+---------+-------+------+----------+-------+
+| id | select_type | table    | partitions | type  | possible_keys | key     | key_len | ref   | rows | filtered | Extra |
++----+-------------+----------+------------+-------+---------------+---------+---------+-------+------+----------+-------+
+|  1 | SIMPLE      | customer | NULL       | const | PRIMARY       | PRIMARY | 2       | const |    1 |   100.00 | NULL  |
++----+-------------+----------+------------+-------+---------------+---------+---------+-------+------+----------+-------+
+1 row in set, 1 warning (0.00 sec)
+
+# NULL: MySQL 不用访问表和索引，直接就能够得到结果
+mysql> explain select NOW();
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+----------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra          |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+----------------+
+|  1 | SIMPLE      | NULL  | NULL       | NULL | NULL          | NULL | NULL    | NULL | NULL |     NULL | No tables used |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+----------------+
+1 row in set, 1 warning (0.00 sec)
+```
+
+- [Sakila Sample Database](https://dev.mysql.com/doc/sakila/en/)
+- [8.8.2 EXPLAIN Output Format](https://dev.mysql.com/doc/refman/5.7/en/explain-output.html)
+- [8.2.1 Optimizing SELECT Statements](https://dev.mysql.com/doc/refman/5.7/en/select-optimization.html)
+
+## 使用 show profile 分析 SQL
+
+```sql
+# 查看当前 MySQL 是否支持 profile
+mysql> select @@have_profiling;
++------------------+
+| @@have_profiling |
++------------------+
+| YES              |
++------------------+
+1 row in set, 1 warning (0.00 sec)
+
+# 查看 profile 是否开启
+mysql> select @@profiling;
++-------------+
+| @@profiling |
++-------------+
+|           0 |
++-------------+
+1 row in set, 1 warning (0.00 sec)
+
+# 开启 profile
+mysql> set profiling = 1;
+Query OK, 0 rows affected, 1 warning (0.00 sec)
+
+# 查看InnoDB表的总行数
+mysql> select count(*) from payment;
++----------+
+| count(*) |
++----------+
+|    16049 |
++----------+
+1 row in set (0.00 sec)
+
+# 查看 profile 记录
+mysql> show profiles;
++----------+------------+----------------------------------------------------------------------------+
+| Query_ID | Duration   | Query                                                                      |
++----------+------------+----------------------------------------------------------------------------+
+|       82 | 0.00208075 | select count(*) from payment                                               |
++----------+------------+----------------------------------------------------------------------------+
+15 rows in set, 1 warning (0.00 sec)
+
+# 查看执行过程中线程的每个状态和消耗的时间
+mysql> show profile for query 82;
++----------------------+----------+
+| Status               | Duration |
++----------------------+----------+
+| starting             | 0.000054 |
+| checking permissions | 0.000007 |
+| Opening tables       | 0.000015 |
+| init                 | 0.000012 |
+| System lock          | 0.000006 |
+| optimizing           | 0.000003 |
+| statistics           | 0.000010 |
+| preparing            | 0.000008 |
+| executing            | 0.000002 |
+| Sending data         | 0.001932 |
+| end                  | 0.000004 |
+| query end            | 0.000005 |
+| closing tables       | 0.000004 |
+| freeing items        | 0.000008 |
+| cleaning up          | 0.000011 |
++----------------------+----------+
+15 rows in set, 1 warning (0.00 sec)
+
+# 查看 CPU 的使用情况
+mysql> show profile cpu for query 82;
++----------------------+----------+----------+------------+
+| Status               | Duration | CPU_user | CPU_system |
++----------------------+----------+----------+------------+
+| starting             | 0.000054 | 0.000000 |   0.000000 |
+| checking permissions | 0.000007 | 0.000000 |   0.000000 |
+| Opening tables       | 0.000015 | 0.000000 |   0.000000 |
+| init                 | 0.000012 | 0.000000 |   0.000000 |
+| System lock          | 0.000006 | 0.000000 |   0.000000 |
+| optimizing           | 0.000003 | 0.000000 |   0.000000 |
+| statistics           | 0.000010 | 0.000000 |   0.000000 |
+| preparing            | 0.000008 | 0.000000 |   0.000000 |
+| executing            | 0.000002 | 0.000000 |   0.000000 |
+| Sending data         | 0.001932 | 0.000000 |   0.004000 |
+| end                  | 0.000004 | 0.000000 |   0.000000 |
+| query end            | 0.000005 | 0.000000 |   0.000000 |
+| closing tables       | 0.000004 | 0.000000 |   0.000000 |
+| freeing items        | 0.000008 | 0.000000 |   0.000000 |
+| cleaning up          | 0.000011 | 0.000000 |   0.000000 |
++----------------------+----------+----------+------------+
+15 rows in set, 1 warning (0.00 sec)
+
+# 统计 MyISAM 表总行数，由于有表元数据行数缓存，那么可以很快得到行数
+mysql> select count(*) from payment_myisam;
++----------+
+| count(*) |
++----------+
+|    16049 |
++----------+
+1 row in set (0.00 sec)
+
+mysql> show profiles;
++----------+------------+----------------------------------------------------------------------------+
+| Query_ID | Duration   | Query                                                                      |
++----------+------------+----------------------------------------------------------------------------+
+|       82 | 0.00208075 | select count(*) from payment                                               |
+|       83 | 0.00013300 | select count(*) from payment_myisam                                        |
++----------+------------+----------------------------------------------------------------------------+
+15 rows in set, 1 warning (0.00 sec)
+
+mysql> show profile for query 83;
++----------------------+----------+
+| Status               | Duration |
++----------------------+----------+
+| starting             | 0.000053 |
+| checking permissions | 0.000006 |
+| Opening tables       | 0.000015 |
+| init                 | 0.000011 |
+| System lock          | 0.000006 |
+| optimizing           | 0.000005 |
+| executing            | 0.000006 |
+| end                  | 0.000003 |
+| query end            | 0.000003 |
+| closing tables       | 0.000006 |
+| freeing items        | 0.000008 |
+| cleaning up          | 0.000013 |
++----------------------+----------+
+12 rows in set, 1 warning (0.00 sec)
+```
+
+- [13.7.5.30 SHOW PROFILE Syntax](https://dev.mysql.com/doc/refman/5.7/en/show-profile.html)
+- [Chapter 22 MySQL Performance Schema](https://dev.mysql.com/doc/refman/5.6/en/performance-schema.html)
+- [mysql explain type连接类型示例](https://blog.csdn.net/leshami/article/details/49447543)
+- [5.1.3 Server Option, System Variable, and Status Variable Reference](https://dev.mysql.com/doc/refman/5.7/en/server-option-variable-reference.html)
+
+## 通过 trace 分析优化器如何选择执行计划
+
+通过 trace 文件能够进一步了解为什么优化器选择A执行计划而不是选择B执行计划，帮助我们更好地理解优化器的行为。
+
+```sql
+mysql> SET optimizer_trace="enabled=on";
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> select rental_id from rental where 1=1 and rental_date >= '2005-05-25 04:00:00' and rental_date <= '2005-05-25 05:00:00' and inventory_id = 4466;
++-----------+
+| rental_id |
++-----------+
+|        39 |
++-----------+
+1 row in set (0.00 sec)
+
+mysql> SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+mysql> SET optimizer_trace="enabled=off";
+Query OK, 0 rows affected (0.00 sec)
+```
+
+- [Chapter 8 Tracing the Optimizer](https://dev.mysql.com/doc/internals/en/optimizer-tracing.html)
+- [8.1 Typical Usage](https://dev.mysql.com/doc/internals/en/optimizer-tracing-typical-usage.html)
