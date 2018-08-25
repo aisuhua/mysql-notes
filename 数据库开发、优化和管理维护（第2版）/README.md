@@ -2018,7 +2018,8 @@ total 632
 mysql> insert into demo values (23, 'xiaozhang');
 Query OK, 1 row affected (0.05 sec)
 
-mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
 +------------------+----------------+----------------------+-----------------------+------------+
 | PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
 +------------------+----------------+----------------------+-----------------------+------------+
@@ -2045,11 +2046,73 @@ mysql> select mod(23, 4);
 将分区后的文件存在不同的硬盘
 
 ```sql
-create table demo (id int, name varchar(20)) engine innodb
+create table demo (id int, name varchar(20))
 partition by range(id) (
-    partition p0 values less than (5) DATA DIRECTORY = '/www/web/' ENGINE = InnoDB,
-    partition p1 values less than (10),
-    partition p2 values less than (15),
-    partition p3 values less than MAXVALUE
+    partition p0 values less than (5) DATA DIRECTORY = '/tmp/dir1',
+    partition p1 values less than (10) DATA DIRECTORY = '/tmp/dir2'
 );
+
+mysql> show create table demo\G
+*************************** 1. row ***************************
+       Table: demo
+Create Table: CREATE TABLE `demo` (
+  `id` int(11) DEFAULT NULL,
+  `name` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+/*!50100 PARTITION BY RANGE (id)
+(PARTITION p0 VALUES LESS THAN (5) DATA DIRECTORY = '/tmp/dir1/' ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (10) DATA DIRECTORY = '/tmp/dir2/' ENGINE = InnoDB) */
+1 row in set (0.00 sec)
+
+# 查看文件内容
+root@ubuntu-test:/tmp# tree
+.
+├── base_server
+├── dir1
+│   └── mydb
+│       └── demo#P#p0.ibd
+└── dir2
+    └── mydb
+        └── demo#P#p1.ibd
+
+root@ubuntu-test:/var/lib/mysql/mydb# ls  -l
+total 24
+-rw-r----- 1 mysql mysql   67 Aug 23 21:35 db.opt
+-rw-r----- 1 mysql mysql 8586 Aug 23 21:47 demo.frm
+-rw-r----- 1 mysql mysql   28 Aug 23 21:47 demo#P#p0.isl
+-rw-r----- 1 mysql mysql   28 Aug 23 21:47 demo#P#p1.isl
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
+    -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| RANGE            | p0             | id                   | 5                     |          0 |
+| RANGE            | p1             | id                   | 10                    |          0 |
++------------------+----------------+----------------------+-----------------------+------------+
+2 rows in set (0.00 sec)
+
+mysql> insert into demo values (1, 'suhua');
+Query OK, 1 row affected (0.11 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| RANGE            | p0             | id                   | 5                     |          1 |
+| RANGE            | p1             | id                   | 10                    |          0 |
++------------------+----------------+----------------------+-----------------------+------------+
+2 rows in set (0.00 sec)
+
+mysql> insert into demo values (8, 'xiaozhang');
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
++------------------+----------------+----------------------+-----------------------+------------+
+| PARTITION_METHOD | PARTITION_NAME | PARTITION_EXPRESSION | PARTITION_DESCRIPTION | TABLE_ROWS |
++------------------+----------------+----------------------+-----------------------+------------+
+| RANGE            | p0             | id                   | 5                     |          1 |
+| RANGE            | p1             | id                   | 10                    |          1 |
++------------------+----------------+----------------------+-----------------------+------------+
+2 rows in set (0.00 sec)
 ```
