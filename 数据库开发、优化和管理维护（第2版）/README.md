@@ -1254,7 +1254,7 @@ mysql> show variables like "%scheduler%";
 # 每隔5秒添加一条记录
 mysql> select * from demo;
 +------+
-| id   |
+    | id   |
 +------+
 |    1 |
 +------+
@@ -2781,3 +2781,224 @@ mysql> explain select * from rental use index (rental_date) where rental_date = 
 5.6版本引入的 Index Condition Pushdown
 
 ![Alt text](img/icp02.jpg)
+
+## 使用不了索引的情况
+
+以%开头的 LIKE 查询不能够利用索引
+
+```sql
+mysql> show create table actor\G
+*************************** 1. row ***************************
+       Table: actor
+Create Table: CREATE TABLE `actor` (
+  `actor_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `first_name` varchar(45) NOT NULL,
+  `last_name` varchar(45) NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`actor_id`),
+  KEY `idx_actor_last_name` (`last_name`)
+) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8
+1 row in set (0.00 sec)
+
+# 用不到索引的情况，会造成全表扫描
+mysql> select * from actor where last_name like "%NI%";
++----------+------------+-----------+---------------------+
+| actor_id | first_name | last_name | last_update         |
++----------+------------+-----------+---------------------+
+|        6 | BETTE      | NICHOLSON | 2006-02-15 04:34:33 |
+|       51 | GARY       | PHOENIX   | 2006-02-15 04:34:33 |
+|      124 | SCARLETT   | BENING    | 2006-02-15 04:34:33 |
+|      174 | MICHAEL    | BENING    | 2006-02-15 04:34:33 |
++----------+------------+-----------+---------------------+
+4 rows in set (0.00 sec)
+
+mysql> explain select * from actor where last_name like "%NI%";
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra       |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | actor | NULL       | ALL  | NULL          | NULL | NULL    | NULL |  200 |    11.11 | Using where |
++----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+# 只扫描整个索引文件
+mysql> explain select actor_id from actor where last_name like "%NI%";
++----+-------------+-------+------------+-------+---------------+---------------------+---------+------+------+----------+--------------------------+
+| id | select_type | table | partitions | type  | possible_keys | key                 | key_len | ref  | rows | filtered | Extra                    |
++----+-------------+-------+------------+-------+---------------+---------------------+---------+------+------+----------+--------------------------+
+|  1 | SIMPLE      | actor | NULL       | index | NULL          | idx_actor_last_name | 137     | NULL |  200 |    11.11 | Using where; Using index |
++----+-------------+-------+------------+-------+---------------+---------------------+---------+------+------+----------+--------------------------+
+1 row in set, 1 warning (0.00 sec)
+
+# 优化方式1
+mysql> select * from actor where actor_id in (select actor_id from actor where last_name like "%NI%");
++----------+------------+-----------+---------------------+
+| actor_id | first_name | last_name | last_update         |
++----------+------------+-----------+---------------------+
+|      124 | SCARLETT   | BENING    | 2006-02-15 04:34:33 |
+|      174 | MICHAEL    | BENING    | 2006-02-15 04:34:33 |
+|        6 | BETTE      | NICHOLSON | 2006-02-15 04:34:33 |
+|       51 | GARY       | PHOENIX   | 2006-02-15 04:34:33 |
++----------+------------+-----------+---------------------+
+
+mysql> explain select * from actor where actor_id in (select actor_id from actor where last_name like "%NI%");
++----+-------------+-------+------------+--------+---------------+---------------------+---------+-----------------------+------+----------+--------------------------+
+| id | select_type | table | partitions | type   | possible_keys | key                 | key_len | ref                   | rows | filtered | Extra                    |
++----+-------------+-------+------------+--------+---------------+---------------------+---------+-----------------------+------+----------+--------------------------+
+|  1 | SIMPLE      | actor | NULL       | index  | PRIMARY       | idx_actor_last_name | 137     | NULL                  |  200 |    11.11 | Using where; Using index |
+|  1 | SIMPLE      | actor | NULL       | eq_ref | PRIMARY       | PRIMARY             | 2       | sakila.actor.actor_id |    1 |   100.00 | NULL                     |
++----+-------------+-------+------------+--------+---------------+---------------------+---------+-----------------------+------+----------+--------------------------+
+
+# 优化方式2
+mysql> select * from (select actor_id from actor where last_name like "%NI%") as a, actor b where a.actor_id = b.actor_id;
++----------+----------+------------+-----------+---------------------+
+| actor_id | actor_id | first_name | last_name | last_update         |
++----------+----------+------------+-----------+---------------------+
+|      124 |      124 | SCARLETT   | BENING    | 2006-02-15 04:34:33 |
+|      174 |      174 | MICHAEL    | BENING    | 2006-02-15 04:34:33 |
+|        6 |        6 | BETTE      | NICHOLSON | 2006-02-15 04:34:33 |
+|       51 |       51 | GARY       | PHOENIX   | 2006-02-15 04:34:33 |
++----------+----------+------------+-----------+---------------------+
+4 rows in set (0.00 sec)
+
+mysql> explain select * from (select actor_id from actor where last_name like "%NI%") as a, actor b where a.actor_id = b.actor_id;
++----+-------------+-------+------------+--------+---------------+---------------------+---------+-----------------------+------+----------+--------------------------+
+| id | select_type | table | partitions | type   | possible_keys | key                 | key_len | ref                   | rows | filtered | Extra                    |
++----+-------------+-------+------------+--------+---------------+---------------------+---------+-----------------------+------+----------+--------------------------+
+|  1 | SIMPLE      | actor | NULL       | index  | PRIMARY       | idx_actor_last_name | 137     | NULL                  |  200 |    11.11 | Using where; Using index |
+|  1 | SIMPLE      | b     | NULL       | eq_ref | PRIMARY       | PRIMARY             | 2       | sakila.actor.actor_id |    1 |   100.00 | NULL                     |
++----+-------------+-------+------------+--------+---------------+---------------------+---------+-----------------------+------+----------+--------------------------+
+2 rows in set, 1 warning (0.00 sec)
+```
+
+数据类型出现隐式转换时也不会使用索引，特别是当列类型是字符串时。(数值型索引可以用字符串类型查询)
+
+```sql
+mysql> explain select * from actor where last_name = 1;
++----+-------------+-------+------------+------+---------------------+------+---------+------+------+----------+-------------+
+| id | select_type | table | partitions | type | possible_keys       | key  | key_len | ref  | rows | filtered | Extra       |
++----+-------------+-------+------------+------+---------------------+------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | actor | NULL       | ALL  | idx_actor_last_name | NULL | NULL    | NULL |  200 |    10.00 | Using where |
++----+-------------+-------+------------+------+---------------------+------+---------+------+------+----------+-------------+
+1 row in set, 3 warnings (0.00 sec)
+
+mysql> explain select * from actor where last_name = '1';
++----+-------------+-------+------------+------+---------------------+---------------------+---------+-------+------+----------+-------+
+| id | select_type | table | partitions | type | possible_keys       | key                 | key_len | ref   | rows | filtered | Extra |
++----+-------------+-------+------------+------+---------------------+---------------------+---------+-------+------+----------+-------+
+|  1 | SIMPLE      | actor | NULL       | ref  | idx_actor_last_name | idx_actor_last_name | 137     | const |    1 |   100.00 | NULL  |
++----+-------------+-------+------------+------+---------------------+---------------------+---------+-------+------+----------+-------+
+1 row in set, 1 warning (0.00 sec)
+```
+
+复合索引的情况下，假如查询条件不包含索引列最左部分，即不满足最左原则 Leftmost 是不会使用复合索引的。
+
+如果 MySQL 估计使用索引比全表扫描更慢，则不使用索引。
+
+```sql
+mysql> show create table film_text\G
+*************************** 1. row ***************************
+       Table: film_text
+Create Table: CREATE TABLE `film_text` (
+  `film_id` smallint(6) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  PRIMARY KEY (`film_id`),
+  KEY `idx2` (`title`(10),`description`(20)),
+  FULLTEXT KEY `idx_title_description` (`title`,`description`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+1 row in set (0.00 sec)
+
+mysql> update film_text set title = concat('S', title);
+Query OK, 1000 rows affected (0.08 sec)
+Rows matched: 1000  Changed: 1000  Warnings: 0
+
+mysql> explain select * from film_text where title like "S%";
++----+-------------+-----------+------------+------+----------------------------+------+---------+------+------+----------+-------------+
+| id | select_type | table     | partitions | type | possible_keys              | key  | key_len | ref  | rows | filtered | Extra       |
++----+-------------+-----------+------------+------+----------------------------+------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | film_text | NULL       | ALL  | idx2,idx_title_description | NULL | NULL    | NULL | 1000 |   100.00 | Using where |
++----+-------------+-----------+------------+------+----------------------------+------+---------+------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select * from film_text where title like "SW%";
++----+-------------+-----------+------------+-------+----------------------------+------+---------+------+------+----------+-------------+
+| id | select_type | table     | partitions | type  | possible_keys              | key  | key_len | ref  | rows | filtered | Extra       |
++----+-------------+-----------+------------+-------+----------------------------+------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | film_text | NULL       | range | idx2,idx_title_description | idx2 | 32      | NULL |   43 |   100.00 | Using where |
++----+-------------+-----------+------------+-------+----------------------------+------+---------+------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+```
+
+用 or 分割开的条件，如果 or 前的条件中的列有索引，而后面的列中没有索引，那么涉及的索引都不会被用到。
+因为 or 后面的条件列中没有索引，那么后面的查询肯定要走全表扫描，在存在全表扫描的情况下，
+就没有必要多一次索引扫描增加 I/O 访问，一次全表扫描过滤条件就足够了。
+
+```sql
+mysql> explain select * from payment where customer_id = 203 or amount = 3.96\G
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: payment
+   partitions: NULL
+         type: ALL
+possible_keys: idx_fk_customer_id
+          key: NULL
+      key_len: NULL
+          ref: NULL
+         rows: 16086
+     filtered: 10.15
+        Extra: Using where
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select * from payment where customer_id = 203 and amount = 3.96\G
+*************************** 1. row ***************************
+           id: 1
+  select_type: SIMPLE
+        table: payment
+   partitions: NULL
+         type: ref
+possible_keys: idx_fk_customer_id
+          key: idx_fk_customer_id
+      key_len: 2
+          ref: const
+         rows: 20
+     filtered: 10.00
+        Extra: Using where
+1 row in set, 1 warning (0.00 sec)
+```
+
+## 查看索引的使用情况
+
+如果 Handler_read_key 高说明索引的利用率高，而 Handler_read_rnd_next 高说明索引利用率低。
+
+```sql
+mysql> show status like 'Handler_read%';
++-----------------------+--------+
+| Variable_name         | Value  |
++-----------------------+--------+
+| Handler_read_first    | 22     |
+| Handler_read_key      | 34     |
+| Handler_read_last     | 0      |
+| Handler_read_next     | 404    |
+| Handler_read_prev     | 0      |
+| Handler_read_rnd      | 0      |
+| Handler_read_rnd_next | 394955 |
++-----------------------+--------+
+7 rows in set (0.00 sec)
+
+# 线上案例
+mysql> show global status like "Handler_read%";
++-----------------------+---------------+
+| Variable_name         | Value         |
++-----------------------+---------------+
+| Handler_read_first    | 435195        |
+| Handler_read_key      | 37581603219   |
+| Handler_read_last     | 239888        |
+| Handler_read_next     | 2593631946708 |
+| Handler_read_prev     | 15347511591   |
+| Handler_read_rnd      | 5916357334    |
+| Handler_read_rnd_next | 42853402179   |
++-----------------------+---------------+
+7 rows in set (0.00 sec)
+```
+
