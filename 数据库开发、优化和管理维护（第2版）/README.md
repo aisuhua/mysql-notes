@@ -1491,7 +1491,7 @@ mysql> insert into demo values (1, 'aaaaaaaaaaaaaaaaaaaaaaaaa');
 ERROR 1406 (22001): Data too long for column 'name' at row 1
 ```
 
-再举例，通过修改 SQL 模型，SQL语句里的反斜杠可不看作转义字符而直接存储。
+再举例，通过修改 SQL 模式，SQL语句里的反斜杠可不看作转义字符而直接存储。
 
 ```sql
 mysql> select @@sql_mode;
@@ -1617,7 +1617,8 @@ mysql> select plugin_name as name, plugin_version as version, plugin_status as s
 
 - 四种分区方式：range、list、hash 和 key
 - range、list 和 hash 只支持数值型分区建
-- 按列分区，支持单列或者多列，并且支持非数值：range columns 和 list columns
+- 按列分区，支持单列或者多列，并且支持非数值分区键：range columns 和 list columns
+- 相对 hash 分区方式，key 支持非数值进行分区，也支持多列分区（hash 不支持）
 - 常规分区和线性分区：linear hash 和 linear key
 - 子分区，对分区进行二次分区：Subpartitioning
 - 分区管理：新增分区、删除分区、合并分区、拆分分区
@@ -1760,6 +1761,7 @@ mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_
 ```
 
 - [22.2.1 RANGE Partitioning](https://dev.mysql.com/doc/refman/5.7/en/partitioning-range.html)
+- [22.2 Partitioning Types](https://dev.mysql.com/doc/refman/5.7/en/partitioning-types.html)
 
 查询时的语法
 
@@ -1800,7 +1802,7 @@ mysql> explain select * from demo where separated = '1989-02-01';
 1 row in set, 1 warning (0.00 sec)
 ```
 
-指定只查询特定分区
+指定只在特定分区内进行查询
 
 ```sql
 mysql> explain select * from demo;
@@ -1876,8 +1878,6 @@ ERROR 1526 (HY000): Table has no partition for value 10
 mysql> insert into demo values (8, 'suhua');
 Query OK, 1 row affected (0.00 sec)
 
-mysql> insert into demo values (10, 'suhua');
-ERROR 1526 (HY000): Table has no partition for value 10
 mysql> select PARTITION_METHOD, PARTITION_NAME, PARTITION_EXPRESSION, PARTITION_DESCRIPTION, TABLE_ROWS
     -> from information_schema.partitions where table_schema = 'mydb' and table_name = 'demo';
 +------------------+----------------+----------------------+-----------------------+------------+
@@ -2043,6 +2043,10 @@ mysql> select mod(23, 4);
 - [22.2.4 HASH Partitioning](https://dev.mysql.com/doc/refman/5.7/en/partitioning-hash.html)
 - [22.3 Partition Management](https://dev.mysql.com/doc/refman/5.7/en/partitioning-management.html)
 
+## key 分区
+
+- [22.2.5 KEY Partitioning](https://dev.mysql.com/doc/refman/5.7/en/partitioning-key.html)
+
 将分区后的文件存在不同的硬盘
 
 ```sql
@@ -2135,6 +2139,7 @@ mysql> show status like "Com%";
 | Com_rollback_to_savepoint   | 0     |
 
 # 查看InnoDB引擎的增删改查调用次数
+# 通过这些数据可以判断系统的读写比例
 mysql> show status like "Innodb%";
 +----------------------------------------+----------------------+
 | Variable_name                          | Value                |
@@ -2184,6 +2189,8 @@ mysql> source /www/web/sakila-db/sakila-schema.sql
 mysql> source /www/web/sakila-db/sakila-data.sql
 ```
 
+- [Sakila Sample Database](https://dev.mysql.com/doc/sakila/en/)
+
 使用 explain 优化查询
 
 ```sql
@@ -2207,7 +2214,7 @@ mysql> explain select * from film where rating > 9;
 +----+-------------+-------+------------+------+---------------+------+---------+------+------+----------+-------------+
 1 row in set, 1 warning (0.00 sec)
 
-# index: 只扫描索引文件，当所查询的列刚好是索引时会出现
+# index: 只扫描索引文件，当所查询（select）的列都包含在索引时会出现
 mysql> explain select title from film;
 +----+-------------+-------+------------+-------+---------------+-----------+---------+------+------+----------+-------------+
 | id | select_type | table | partitions | type  | possible_keys | key       | key_len | ref  | rows | filtered | Extra       |
@@ -2354,9 +2361,9 @@ mysql> explain select NOW();
 1 row in set, 1 warning (0.00 sec)
 ```
 
-- [Sakila Sample Database](https://dev.mysql.com/doc/sakila/en/)
 - [8.8.2 EXPLAIN Output Format](https://dev.mysql.com/doc/refman/5.7/en/explain-output.html)
 - [8.2.1 Optimizing SELECT Statements](https://dev.mysql.com/doc/refman/5.7/en/select-optimization.html)
+- [mysql explain type连接类型示例](https://blog.csdn.net/leshami/article/details/49447543)
 
 ## 使用 show profile 分析 SQL
 
@@ -2370,7 +2377,7 @@ mysql> select @@have_profiling;
 +------------------+
 1 row in set, 1 warning (0.00 sec)
 
-# 查看 profile 是否开启
+# 查看 profile 是否开启，默认关闭
 mysql> select @@profiling;
 +-------------+
 | @@profiling |
@@ -2447,7 +2454,7 @@ mysql> show profile cpu for query 82;
 +----------------------+----------+----------+------------+
 15 rows in set, 1 warning (0.00 sec)
 
-# 统计 MyISAM 表总行数，由于有表元数据行数缓存，那么可以很快得到行数
+# 统计 MyISAM 表总行数，由于表的元数据总有行数缓存，那么行数计算速度比 InnoDB 要快得多
 mysql> select count(*) from payment_myisam;
 +----------+
 | count(*) |
@@ -2465,6 +2472,7 @@ mysql> show profiles;
 +----------+------------+----------------------------------------------------------------------------+
 15 rows in set, 1 warning (0.00 sec)
 
+# 没有 Sending Data 最耗时的阶段，因为它不需要访问数据
 mysql> show profile for query 83;
 +----------------------+----------+
 | Status               | Duration |
@@ -2485,9 +2493,11 @@ mysql> show profile for query 83;
 12 rows in set, 1 warning (0.00 sec)
 ```
 
+> Sending data 状态表示 MySQL 线程开始访问数据行并把结果返回给客户端，而不仅仅是返回结果给客户端。
+> 由于在 Sending data 状态下，MySQL 线程往往需要做大量的磁盘读取操作，所以经常是整个查询中耗时最长的状态。
+
 - [13.7.5.30 SHOW PROFILE Syntax](https://dev.mysql.com/doc/refman/5.7/en/show-profile.html)
 - [Chapter 22 MySQL Performance Schema](https://dev.mysql.com/doc/refman/5.6/en/performance-schema.html)
-- [mysql explain type连接类型示例](https://blog.csdn.net/leshami/article/details/49447543)
 - [5.1.3 Server Option, System Variable, and Status Variable Reference](https://dev.mysql.com/doc/refman/5.7/en/server-option-variable-reference.html)
 
 ## 通过 trace 分析优化器如何选择执行计划
@@ -2524,6 +2534,14 @@ Query OK, 0 rows affected (0.00 sec)
 # 该类型索引在排序 order by 和分组 group by 操作时无法使用
 alter table demo add index idx1(name(5));
 ```
+
+## B-Tree 和 HASH 索引的区别
+
+- 只有 Memory 引擎支持 HASH 索引
+- Hash 索引适合于 Key-Value 的存储和查询场景，这种方式的查询比 btree 更快
+- Hash 索引不适合范围查询，例如 <、>、<=、>= 这类操作，它只有在用 = 查询才能用上索引
+
+- [8.3.8 Comparison of B-Tree and Hash Indexes](https://dev.mysql.com/doc/refman/5.7/en/index-btree-hash.html)
 
 最左前缀原则, 多列索引（复合索引）对索引的使用
 
@@ -2710,7 +2728,7 @@ mysql> explain select inventory_id from rental where rental_date = '2006-02-14 1
 # 所以在 Extra 部分能看到 Using index，表示查询使用了覆盖索引扫描。
 ```
 
-如果列名是索引，那么使用 column name is null 就会使用索引
+如果该列为索引，那么使用 column name is null 就会使用索引
 
 ```sql
 mysql> show create table payment\G
@@ -2756,10 +2774,10 @@ mysql> explain select * from rental use index (rental_date) where rental_date = 
 1 row in set, 1 warning (0.00 sec)
 ```
 
-复合索引搜索
+5.5版本时复合索引搜索
 
 ![Alt text](img/icp01.jpg)
 
-Index Condition Pushdown
+5.6版本引入的 Index Condition Pushdown
 
 ![Alt text](img/icp02.jpg)
