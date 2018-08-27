@@ -3002,3 +3002,84 @@ mysql> show global status like "Handler_read%";
 7 rows in set (0.00 sec)
 ```
 
+## 定期分析表和检查表
+
+ANALYZE 语句用于分析和存储表的关键字分布，分析的结果将可以使得系统得到准确的统计信息，使得 SQL 能够生成正确的执行计划。
+如果用户感觉实际执行计划并不是预期的执行计划，执行一次分析表可能会解决问题。
+在分析表期间，使用一个读取锁定对表进行锁定。这对于 MyISAM、BDB 和 InnoDB 表有作用。
+
+```sql
+mysql> analyze table actor;
++--------------+---------+----------+----------+
+| Table        | Op      | Msg_type | Msg_text |
++--------------+---------+----------+----------+
+| sakila.actor | analyze | status   | OK       |
++--------------+---------+----------+----------+
+1 row in set (0.05 sec)
+```
+
+CHECK 语句用于检测一个或多个表是否有错误。 CHECK TABLE 对 MyISAM 和 InnoDB 表有作用。
+对于 MyISAM 表，关键字统计数据被更新。
+
+```sql
+mysql> check table payment;
++----------------+-------+----------+----------+
+| Table          | Op    | Msg_type | Msg_text |
++----------------+-------+----------+----------+
+| sakila.payment | check | status   | OK       |
++----------------+-------+----------+----------+
+```
+
+CHECK TABLE 也可以检测视图是否有错误，比如在视图定义中被引用的表已不存在。
+
+```sql
+mysql> create view myview as select * from payment_myisam;
+Query OK, 0 rows affected (0.05 sec)
+
+mysql> drop table payment_myisam;
+Query OK, 0 rows affected (0.00 sec)
+
+# 会显示错误信息
+mysql> check table myview;
++---------------+-------+----------+---------------------------------------------------------------------------------------------------------------------------------+
+| Table         | Op    | Msg_type | Msg_text                                                                                                                        |
++---------------+-------+----------+---------------------------------------------------------------------------------------------------------------------------------+
+| sakila.myview | check | Error    | Table 'sakila.payment_myisam' doesn't exist                                                                                     |
+| sakila.myview | check | Error    | View 'sakila.myview' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them |
+| sakila.myview | check | error    | Corrupt                                                                                                                         |
++---------------+-------+----------+---------------------------------------------------------------------------------------------------------------------------------+
+3 rows in set (0.00 sec)
+```
+
+- [13.7.2.1 ANALYZE TABLE Syntax](https://dev.mysql.com/doc/refman/5.7/en/analyze-table.html)
+- [13.7.2.2 CHECK TABLE Syntax](https://dev.mysql.com/doc/refman/5.7/en/check-table.html)
+
+## 优化表
+
+如果已经删除了表的一大部分，或者如果已经对含有可变长度行的表（含有 VARCHAR、BLOB 或 TEXT 列的表）进行了很多更改，
+则应使用 OPTIMIZE TABLE 命令来进行表优化。这个命令可以将表中的空间碎片进行合并，并且可以消除由于删除或者更新造成的空间浪费，
+但 OPTIMIZE TABLE 命令只对 MyISAM、BDB 和 InnoDB 表起作用。
+
+```sql
+mysql> optimize table payment;
++----------------+----------+----------+-------------------------------------------------------------------+
+| Table          | Op       | Msg_type | Msg_text                                                          |
++----------------+----------+----------+-------------------------------------------------------------------+
+| sakila.payment | optimize | note     | Table does not support optimize, doing recreate + analyze instead |
+| sakila.payment | optimize | status   | OK                                                                |
++----------------+----------+----------+-------------------------------------------------------------------+
+2 rows in set (0.31 sec)
+```
+
+另外，在删除大量数据后，InnoDB 表可以通过 alter table 但是不修改引擎的方式来回收不用的空间。
+
+```sql
+mysql> alter table payment engine = innodb;
+Query OK, 0 rows affected (0.28 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+```
+
+> 注意：ANALYZE、CHECK、OPTIMIZE、ALTER TABLE 执行期间将对表进行锁定，因此一定注意要在数据库不繁忙的时候执行相关操作。
+
+- [What does “Table does not support optimize, doing recreate + analyze instead” mean?](https://stackoverflow.com/questions/30635603/what-does-table-does-not-support-optimize-doing-recreate-analyze-instead-me)
+- [13.7.2.4 OPTIMIZE TABLE Syntax](https://dev.mysql.com/doc/refman/5.7/en/optimize-table.html)
