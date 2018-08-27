@@ -22,3 +22,5 @@
 ## News
 
 - [MySQL 8.0 Reference Manual](https://dev.mysql.com/doc/refman/8.0/en/)
+- [迄今最安全的MySQL？细数5.7那些惊艳与鸡肋的新特性（上）](https://dbaplus.cn/news-11-493-1.html)
+- [迄今最安全的MySQL？细数5.7那些惊艳与鸡肋的新特性（中）](https://dbaplus.cn/news-11-671-1.html)

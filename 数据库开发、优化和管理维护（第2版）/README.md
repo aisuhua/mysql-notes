@@ -3312,3 +3312,127 @@ SET foreign_key_checks=1;
 - 对于 MyISAM 表将索引文件和数据文件分在不同的磁盘上存放。
 - 如果进行批量插入，可以通过增加 `bulk_insert_buffer_size` 变量值的方法提高速度，但是，这只能对 MyISAM 表使用。
 - 当从一个文本文件装载一个表时，使用 LOAD DATA INFILE，这通常比使用很多 INSERT 语句快 20 倍。
+
+## 优化 ORDER BY 语句
+
+```sql
+mysql> show index from customer;
++----------+------------+-------------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| Table    | Non_unique | Key_name          | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
++----------+------------+-------------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| customer |          0 | PRIMARY           |            1 | customer_id | A         |         599 |     NULL | NULL   |      | BTREE      |         |               |
+| customer |          0 | idx_email         |            1 | email       | A         |         599 |     NULL | NULL   | YES  | BTREE      |         |               |
+| customer |          1 | idx_fk_store_id   |            1 | store_id    | A         |           2 |     NULL | NULL   |      | BTREE      |         |               |
+| customer |          1 | idx_fk_address_id |            1 | address_id  | A         |         599 |     NULL | NULL   |      | BTREE      |         |               |
+| customer |          1 | idx_last_name     |            1 | last_name   | A         |         599 |     NULL | NULL   |      | BTREE      |         |               |
++----------+------------+-------------------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+5 rows in set (0.00 sec
+
+mysql> explain select customer_id from customer order by store_id desc;
++----+-------------+----------+------------+-------+---------------+-----------------+---------+------+------+----------+-------------+
+| id | select_type | table    | partitions | type  | possible_keys | key             | key_len | ref  | rows | filtered | Extra       |
++----+-------------+----------+------------+-------+---------------+-----------------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | customer | NULL       | index | NULL          | idx_fk_store_id | 1       | NULL |  599 |   100.00 | Using index |
++----+-------------+----------+------------+-------+---------------+-----------------+---------+------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select * from customer order by store_id desc;
++----+-------------+----------+------------+------+---------------+------+---------+------+------+----------+----------------+
+| id | select_type | table    | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra          |
++----+-------------+----------+------------+------+---------------+------+---------+------+------+----------+----------------+
+|  1 | SIMPLE      | customer | NULL       | ALL  | NULL          | NULL | NULL    | NULL |  599 |   100.00 | Using filesort |
++----+-------------+----------+------------+------+---------------+------+---------+------+------+----------+----------------+
+1 row in set, 1 warning (0.00 sec)
+```
+
+尽量减少额外的排序，通过索引直接返回有序数据。
+
+- [8.2.1.13 ORDER BY Optimization](https://dev.mysql.com/doc/refman/5.6/en/order-by-optimization.html)
+- [mysql中order by优化的那些事儿](http://blog.51cto.com/ustb80/1073352)
+
+## 优化 GROUP BY 语句
+
+```sql
+mysql> explain select store_id, count(*) from customer group by store_id;
++----+-------------+----------+------------+-------+-----------------+-----------------+---------+------+------+----------+-------------+
+| id | select_type | table    | partitions | type  | possible_keys   | key             | key_len | ref  | rows | filtered | Extra       |
++----+-------------+----------+------------+-------+-----------------+-----------------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | customer | NULL       | index | idx_fk_store_id | idx_fk_store_id | 1       | NULL |  599 |   100.00 | Using index |
++----+-------------+----------+------------+-------+-----------------+-----------------+---------+------+------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+```
+
+- [8.2.1.15 GROUP BY Optimization](https://dev.mysql.com/doc/refman/5.7/en/group-by-optimization.html)
+
+## 优化嵌套查询
+
+```sql
+mysql> explain select * from customer where customer_id in (select customer_id from payment);
++----+-------------+----------+------------+------+--------------------+--------------------+---------+-----------------------------+------+----------+-----------------------------------+
+| id | select_type | table    | partitions | type | possible_keys      | key                | key_len | ref                         | rows | filtered | Extra                             |
++----+-------------+----------+------------+------+--------------------+--------------------+---------+-----------------------------+------+----------+-----------------------------------+
+|  1 | SIMPLE      | customer | NULL       | ALL  | PRIMARY            | NULL               | NULL    | NULL                        |  599 |   100.00 | NULL                              |
+|  1 | SIMPLE      | payment  | NULL       | ref  | idx_fk_customer_id | idx_fk_customer_id | 2       | sakila.customer.customer_id |   26 |   100.00 | Using index; FirstMatch(customer) |
++----+-------------+----------+------------+------+--------------------+--------------------+---------+-----------------------------+------+----------+-----------------------------------+
+2 rows in set, 1 warning (0.00 sec)
+
+mysql> explain select * from customer inner join payment on customer.customer_id = payment.customer_id;
++----+-------------+----------+------------+------+--------------------+--------------------+---------+-----------------------------+------+----------+-------+
+| id | select_type | table    | partitions | type | possible_keys      | key                | key_len | ref                         | rows | filtered | Extra |
++----+-------------+----------+------------+------+--------------------+--------------------+---------+-----------------------------+------+----------+-------+
+|  1 | SIMPLE      | customer | NULL       | ALL  | PRIMARY            | NULL               | NULL    | NULL                        |  599 |   100.00 | NULL  |
+|  1 | SIMPLE      | payment  | NULL       | ref  | idx_fk_customer_id | idx_fk_customer_id | 2       | sakila.customer.customer_id |   26 |   100.00 | NULL  |
++----+-------------+----------+------------+------+--------------------+--------------------+---------+-----------------------------+------+----------+-------+
+2 rows in set, 1 warning (0.00 sec
+```
+
+- [8.2.2 Optimizing Subqueries, Derived Tables, and View References](https://dev.mysql.com/doc/refman/5.7/en/subquery-optimization.html)
+
+## 优化 OR 条件
+
+```sql
+mysql> show create table customer\G
+*************************** 1. row ***************************
+       Table: customer
+Create Table: CREATE TABLE `customer` (
+  `customer_id` smallint(5) unsigned NOT NULL AUTO_INCREMENT,
+  `store_id` tinyint(3) unsigned NOT NULL,
+  `first_name` varchar(45) NOT NULL,
+  `last_name` varchar(45) NOT NULL,
+  `email` varchar(50) DEFAULT NULL,
+  `address_id` smallint(5) unsigned NOT NULL,
+  `active` tinyint(1) NOT NULL DEFAULT '1',
+  `create_date` datetime NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`customer_id`),
+  UNIQUE KEY `idx_email` (`email`),
+  KEY `idx_fk_store_id` (`store_id`),
+  KEY `idx_fk_address_id` (`address_id`),
+  KEY `idx_last_name` (`last_name`),
+  CONSTRAINT `fk_customer_address` FOREIGN KEY (`address_id`) REFERENCES `address` (`address_id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_customer_store` FOREIGN KEY (`store_id`) REFERENCES `store` (`store_id`) ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=600 DEFAULT CHARSET=utf8
+1 row in set (0.00 sec)
+
+# 两个索引必须使用索引才能利用索引
+# 查询时实际是对 OR 的各个字段分别查询后的结果进行了 UNION 操作
+mysql> explain select * from customer where customer_id = 500 or store_id = 1;
++----+-------------+----------+------------+-------------+-------------------------+-------------------------+---------+------+------+----------+---------------------------------------------------+
+| id | select_type | table    | partitions | type        | possible_keys           | key                     | key_len | ref  | rows | filtered | Extra                                             |
++----+-------------+----------+------------+-------------+-------------------------+-------------------------+---------+------+------+----------+---------------------------------------------------+
+|  1 | SIMPLE      | customer | NULL       | index_merge | PRIMARY,idx_fk_store_id | PRIMARY,idx_fk_store_id | 2,1     | NULL |  327 |   100.00 | Using union(PRIMARY,idx_fk_store_id); Using where |
++----+-------------+----------+------------+-------------+-------------------------+-------------------------+---------+------+------+----------+---------------------------------------------------+
+1 row in set, 1 warning (0.00 sec)
+
+# 如果有一个条件不是索引，那么则不会用到索引
+mysql> explain select * from customer where customer_id = 500 or active = 1;
++----+-------------+----------+------------+------+---------------+------+---------+------+------+----------+-------------+
+| id | select_type | table    | partitions | type | possible_keys | key  | key_len | ref  | rows | filtered | Extra       |
++----+-------------+----------+------------+------+---------------+------+---------+------+------+----------+-------------+
+|  1 | SIMPLE      | customer | NULL       | ALL  | PRIMARY       | NULL | NULL    | NULL |  599 |    10.15 | Using where |
++----+-------------+----------+------------+------+---------------+------+---------+------+------+----------+-------------+
+```
+
+- [8.2.1.1 WHERE Clause Optimization](https://dev.mysql.com/doc/refman/5.7/en/where-optimization.html)
+
+
