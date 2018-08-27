@@ -3083,3 +3083,220 @@ Records: 0  Duplicates: 0  Warnings: 0
 
 - [What does “Table does not support optimize, doing recreate + analyze instead” mean?](https://stackoverflow.com/questions/30635603/what-does-table-does-not-support-optimize-doing-recreate-analyze-instead-me)
 - [13.7.2.4 OPTIMIZE TABLE Syntax](https://dev.mysql.com/doc/refman/5.7/en/optimize-table.html)
+
+## 常用 SQL 的优化方法
+
+### 大批量插入数据
+
+当用 load 命令导入数据的时候，适当的设置可以提高导入的速度。
+
+- [8.2.4.1 Optimizing INSERT Statements](https://dev.mysql.com/doc/refman/5.6/en/insert-optimization.html)
+
+#### MyISAM
+
+对于 MyISAM 存储引擎的表，可以通过以下方式快速地导入大量的数据。
+
+```sql
+alter table table_name disable keys;
+load the data
+alter table table_name enable keys
+```
+
+disable keys 和 enable keys 用来打开或者关闭 MyISAM 表非唯一索引的更新。
+在导入大量的数据到一个非空的 MyISAM 表时，通过设置这两个命令，可以提高导入效率。
+对于导入大量数据到一个空的 MyISAM 表，默认就是先导入数据然后才创建索引的，所以不用进行设置。
+
+先导入数据，后创建索引
+
+```sql
+create table `oss_file_c200` (
+  `id` bigint(20) unsigned not null auto_increment comment '主键id',
+  `sha1` char(40) not null default '' comment '文件sha1',
+  `file_size` bigint(20) not null default '0' comment '文件大小',
+  `file_type` varchar(128) not null default '' comment '文件类型',
+  `object_id` varchar(255) not null default '' comment '文件object_id',
+  `state` tinyint(3) not null default '0' comment '状态',
+  `checked` tinyint(3) not null default '0' comment '是否校验',
+  `k` int(11) unsigned not null default '0' comment '标识',
+  `update_time` int(11) unsigned not null default '0' comment '更新时间',
+  `create_time` int(11) unsigned not null default '0' comment '创建时间',
+  `error` varchar(255) not null default '' comment '更新失败原因',
+  primary key (`id`)
+) engine=myisam default character set utf8mb4 collate utf8mb4_unicode_ci;
+
+mysql> load data infile '/tmp/oss_file_c200_sorted_1000000.sql' into table oss_file_c200;
+Query OK, 1000000 rows affected (2.80 sec)
+Records: 1000000  Deleted: 0  Skipped: 0  Warnings: 0
+
+mysql> alter table oss_file_c200
+    -> add index idx1 (`sha1`),
+    -> add index idx2 (`object_id`(191)),
+    -> add index idx3 (`state`),
+    -> add index idx4 (`k`),
+    -> add index `idx5` (`checked`);
+Query OK, 1000000 rows affected (14.71 sec)
+Records: 1000000  Duplicates: 0  Warnings: 0
+```
+
+对比直接导入与关闭索引再导入的区别
+
+```sql
+# 创建表
+create table `oss_file_c200` (
+  `id` bigint(20) unsigned not null auto_increment comment '主键id',
+  `sha1` char(40) not null default '' comment '文件sha1',
+  `file_size` bigint(20) not null default '0' comment '文件大小',
+  `file_type` varchar(128) not null default '' comment '文件类型',
+  `object_id` varchar(255) not null default '' comment '文件object_id',
+  `state` tinyint(3) not null default '0' comment '状态',
+  `checked` tinyint(3) not null default '0' comment '是否校验',
+  `k` int(11) unsigned not null default '0' comment '标识',
+  `update_time` int(11) unsigned not null default '0' comment '更新时间',
+  `create_time` int(11) unsigned not null default '0' comment '创建时间',
+  `error` varchar(255) not null default '' comment '更新失败原因',
+  primary key (`id`)
+) engine=innodb default character set utf8mb4 collate utf8mb4_unicode_ci;
+
+# 直接导入数据
+mysql> load data infile '/tmp/oss_file_c200_sorted_1000000.sql' into table oss_file_c200;
+Query OK, 1000000 rows affected (10.80 sec)
+Records: 1000000  Deleted: 0  Skipped: 0  Warnings: 0
+
+mysql> truncate table oss_file_c200;
+Query OK, 0 rows affected (0.08 sec)
+
+mysql> select * from oss_file_c200;
+Empty set (0.00 sec)
+
+# 先关闭未唯一键索引的更新
+mysql> alter table oss_file_c200 disable keys;
+Query OK, 0 rows affected (0.00 sec)
+
+# 导入数据
+mysql> load data infile '/tmp/oss_file_c200_sorted_1000000.sql' into table oss_file_c200;
+Query OK, 1000000 rows affected (2.83 sec)
+Records: 1000000  Deleted: 0  Skipped: 0  Warnings: 0
+
+# 开启索引更新
+mysql> alter table oss_file_c200 enable keys;
+Query OK, 0 rows affected (8.07 sec)
+```
+
+**说明**：该例子并没有太大的说服力。
+
+- [8.6.2 Bulk Data Loading for MyISAM Tables](https://dev.mysql.com/doc/refman/5.6/en/optimizing-myisam-bulk-data-loading.html)
+
+#### InnoDB
+
+因为 InnoDB 类型的的表是按照主键顺序保存的，所以将导入的数据按照主键的顺序排列，可以有效地提高导入速度。
+
+```sql
+create table `oss_file_c200` (
+  `id` bigint(20) unsigned not null auto_increment comment '主键id',
+  `sha1` char(40) not null default '' comment '文件sha1',
+  `file_size` bigint(20) not null default '0' comment '文件大小',
+  `file_type` varchar(128) not null default '' comment '文件类型',
+  `object_id` varchar(255) not null default '' comment '文件object_id',
+  `state` tinyint(3) not null default '0' comment '状态',
+  `checked` tinyint(3) not null default '0' comment '是否校验',
+  `k` int(11) unsigned not null default '0' comment '标识',
+  `update_time` int(11) unsigned not null default '0' comment '更新时间',
+  `create_time` int(11) unsigned not null default '0' comment '创建时间',
+  `error` varchar(255) not null default '' comment '更新失败原因',
+  primary key (`id`)
+) engine=innodb default character set utf8mb4 collate utf8mb4_unicode_ci;
+
+# 导入已排好序的文件
+mysql> load data infile '/tmp/oss_file_c200_sorted_1000000.sql' into table oss_file_c200;
+Query OK, 1000000 rows affected (8.49 sec)
+Records: 1000000  Deleted: 0  Skipped: 0  Warnings: 0
+
+# 导入乱序的文件
+mysql> load data infile '/tmp/oss_file_c200_notsort_1000000.sql' into table oss_file_c200;
+Query OK, 1000000 rows affected (3 min 17.36 sec)
+Records: 1000000  Deleted: 0  Skipped: 0  Warnings: 0
+```
+
+如果应用使用了自动提交方式，建议在导入前执行 SET AUTOCOMMIT=0，关闭自动提交，导入结束后再执行 SET AUTOCOMMIT=1，
+打开自动提交，也可以提高导入速度。
+
+```sql
+# 当 autocommit=1 时
+mysql>  load data infile '/tmp/oss_file_c200_sorted_1000000.sql' into table oss_file_c200;
+Query OK, 1000000 rows affected (9.37 sec)
+Records: 1000000  Deleted: 0  Skipped: 0  Warnings: 0
+
+# autocommit=0 时
+mysql> set autocommit = 0;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> load data infile '/tmp/oss_file_c200_sorted_1000000.sql' into table oss_file_c200;
+Query OK, 1000000 rows affected (8.64 sec)
+Records: 1000000  Deleted: 0  Skipped: 0  Warnings: 0
+
+mysql> set autocommit = 1;
+Query OK, 0 rows affected (0.01 sec)
+```
+
+在导入数据前执行 SET UNIQUE_CHECKS=0，关闭唯一性检验，在导入结束后执行 SET UNIQUE CHECKS=1，恢复唯一性校验，可以提高导入的速度。
+如果存在非主键的唯一键存在时才有效。
+
+```sql
+create table `oss_file_c200` (
+  `id` bigint(20) unsigned not null auto_increment comment '主键id',
+  `sha1` char(40) not null default '' comment '文件sha1',
+  `file_size` bigint(20) not null default '0' comment '文件大小',
+  `file_type` varchar(128) not null default '' comment '文件类型',
+  `object_id` varchar(255) not null default '' comment '文件object_id',
+  `state` tinyint(3) not null default '0' comment '状态',
+  `checked` tinyint(3) not null default '0' comment '是否校验',
+  `k` int(11) unsigned not null default '0' comment '标识',
+  `update_time` int(11) unsigned not null default '0' comment '更新时间',
+  `create_time` int(11) unsigned not null default '0' comment '创建时间',
+  `error` varchar(255) not null default '' comment '更新失败原因',
+  primary key (`id`),
+  unique key (`sha1`)
+) engine=innodb default character set utf8mb4 collate utf8mb4_unicode_ci;
+
+# 当 unique_checks = 1 时
+mysql> set unique_checks = 1;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> load data infile '/tmp/oss_file_c200_sorted_1000000.sql' into table oss_file_c200;
+Query OK, 1000000 rows affected (20.65 sec)
+Records: 1000000  Deleted: 0  Skipped: 0  Warnings: 0
+
+# 当 unique_checks = 0 时
+mysql> set unique_checks = 0;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> load data infile '/tmp/oss_file_c200_sorted_1000000.sql' into table oss_file_c200;
+Query OK, 1000000 rows affected (19.88 sec)
+Records: 1000000  Deleted: 0  Skipped: 0  Warnings: 0
+
+mysql> set unique_checks = 1;
+Query OK, 0 rows affected (0.00 sec)
+```
+
+如果有外键的情况下，也可以在导入前先关闭外键检测，导入后再打开。
+
+```sql
+SET foreign_key_checks=0;
+... SQL import statements ...
+SET foreign_key_checks=1;
+```
+
+- [8.5.4 Bulk Data Loading for InnoDB Tables](https://dev.mysql.com/doc/refman/5.5/en/optimizing-innodb-bulk-data-loading.html)
+
+#### 优化 insert 语句
+
+优化方法
+
+- 如何同时从同一个客户端插入多行，进行使用批量插入。这种方式将大大缩减客户端与数据库之间的连接、关闭等消耗。
+
+    ```sql
+    insert into test values (1, 2), (3, 4), (5, 6), ...
+    ```
+- 对于 MyISAM 表将索引文件和数据文件分在不同的磁盘上存放。
+- 如果进行批量插入，可以通过增加 `bulk_insert_buffer_size` 变量值的方法提高速度，但是，这只能对 MyISAM 表使用。
+- 当从一个文本文件装载一个表时，使用 LOAD DATA INFILE，这通常比使用很多 INSERT 语句快 20 倍。
