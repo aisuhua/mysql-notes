@@ -3101,6 +3101,8 @@ secure_file_priv = ''
 - [secure_file_priv](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_secure_file_priv)
 - [How should I tackle --secure-file-priv in MySQL?](https://stackoverflow.com/questions/32737478/how-should-i-tackle-secure-file-priv-in-mysql)
 - [8.2.4.1 Optimizing INSERT Statements](https://dev.mysql.com/doc/refman/5.6/en/insert-optimization.html)
+- [3.2.6 LOAD DATA INFILE Syntax](https://dev.mysql.com/doc/refman/5.7/en/load-data.html)
+- [13.2.9.1 SELECT ... INTO Syntax](https://dev.mysql.com/doc/refman/5.7/en/select-into.html)
 
 #### MyISAM
 
