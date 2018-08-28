@@ -4005,6 +4005,8 @@ Avg_value_or_avg_length: 40.0000
 mysql> alter table oss_file_c200 modify object_id char(40) not null;
 ```
 
+- [8.4.2.4 Using PROCEDURE ANALYSE](https://dev.mysql.com/doc/refman/5.7/en/procedure-analyse.html)
+
 ## 通过拆分提高表的访问效率
 
 这里所说的拆分是指对数据表进行拆分。
@@ -4024,3 +4026,13 @@ mysql> alter table oss_file_c200 modify object_id char(40) not null;
 ![19.3逆规范化1.jpg](img/19.3逆规范化1.jpg)
 
 ![19.3逆规范化2.jpg](img/19.3逆规范化2.jpg)
+
+## 使用中间表提高统计查询速度
+
+对于数据量较大的表，在其上进行统计查询通常效率很低，并且还要考虑统计查询是否会在线的应用产生负面影响。
+通常在这种情况下，使用中间表可以提高统计查询速度。
+
+中间表在统计查询中经常会用到，其优点如下：
+
+- 中间表复制源表的部分数据，并且与原表相“隔离”，在中间表上进行统计查询不会对在线应用产生负面影响。
+- 中间表上可以灵活地添加索引或增加临时用的新字段，从而达到提高查询效率和辅助统计查询作用。
