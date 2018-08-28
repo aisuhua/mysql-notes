@@ -3917,3 +3917,110 @@ lower_case_table_names = 0
 - [server-system-variables.html#sysvar_lower_case_table_names](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_lower_case_table_names)
 - [9.2.2 Identifier Case Sensitivity](https://dev.mysql.com/doc/refman/5.7/en/identifier-case-sensitivity.html)
 
+# 优化数据库对象
+
+## 优化表的数据类型
+
+可以使用 PROCEDURE ANALYSE() 对当前应用的表进行分析，该函数可以对数据库中列的类型提出优化建议，
+用户可以根据应用的实际情况酌情考虑是否实施优化。
+
+```sql
+SELECT * FROM table_name PROCEDURE ANALYSE()
+SELECT * FROM table_name PROCEDURE ANALYSE(16, 256)
+```
+
+演示
+
+```sql
+mysql> show create table oss_file_c200\G;
+*************************** 1. row ***************************
+       Table: oss_file_c200
+Create Table: CREATE TABLE `oss_file_c200` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键id',
+  `sha1` char(40) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '文件sha1',
+  `file_size` bigint(20) NOT NULL DEFAULT '0' COMMENT '文件大小',
+  `file_type` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '文件类型',
+  `object_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '文件object_id',
+  `state` tinyint(3) NOT NULL DEFAULT '0' COMMENT '状态',
+  `checked` tinyint(3) NOT NULL DEFAULT '0' COMMENT '是否校验',
+  `k` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '标识',
+  `update_time` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '更新时间',
+  `create_time` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '创建时间',
+  `error` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '更新失败原因',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `sha1` (`sha1`)
+) ENGINE=InnoDB AUTO_INCREMENT=1070001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+1 row in set (0.00 sec)
+
+mysql> select * from oss_file_c200 procedure analyse()\G
+*************************** 1. row ***************************
+             Field_name: ossid_115.oss_file_c200.id
+              Min_value: 70001
+              Max_value: 1070000
+             Min_length: 5
+             Max_length: 7
+       Empties_or_zeros: 0
+                  Nulls: 0
+Avg_value_or_avg_length: 570000.5000
+                    Std: 638918.9228
+      Optimal_fieldtype: MEDIUMINT(7) UNSIGNED NOT NULL
+*************************** 2. row ***************************
+             Field_name: ossid_115.oss_file_c200.sha1
+              Min_value: 000000B4E3981A44ACDD141BC03CBAFB6501FB88
+              Max_value: FFFFE5A053A55CF0CBD621168006E505E2916A88
+             Min_length: 40
+             Max_length: 40
+       Empties_or_zeros: 0
+                  Nulls: 0
+Avg_value_or_avg_length: 40.0000
+                    Std: NULL
+      Optimal_fieldtype: CHAR(40) NOT NULL
+*************************** 3. row ***************************
+             Field_name: ossid_115.oss_file_c200.file_size
+              Min_value: 2
+              Max_value: 44144984064
+             Min_length: 1
+             Max_length: 11
+       Empties_or_zeros: 0
+                  Nulls: 0
+Avg_value_or_avg_length: 21701483.8122
+                    Std: 0.0000
+      Optimal_fieldtype: BIGINT(11) UNSIGNED NOT NULL
+*************************** 5. row ***************************
+             Field_name: ossid_115.oss_file_c200.object_id
+              Min_value: _A-w3r3sA5dZqlA_-8BzLjb_gDs00QTe-78wAhGM
+              Max_value: ZDYWsFOKDt1nYLDzZD8uHoRFGNQmpGtrzALDA31J
+             Min_length: 40
+             Max_length: 40
+       Empties_or_zeros: 0
+                  Nulls: 0
+Avg_value_or_avg_length: 40.0000
+                    Std: NULL
+      Optimal_fieldtype: CHAR(40) NOT NULL
+```
+
+根据给出的统计信息和优化建议，可以使用如下语句进行字段类型的更改：
+
+```sql
+mysql> alter table oss_file_c200 modify object_id char(40) not null;
+```
+
+## 通过拆分提高表的访问效率
+
+这里所说的拆分是指对数据表进行拆分。
+
+- 垂直拆分，即把主码和一些列放在一个表，然后把主码和另外一些列放在另外一个表中。
+
+如果一个表中某些列常用，而另外一些列不常用，则可以采用垂直拆分，另外垂直拆分可以使得数据变小，
+一个数据页就可以存放更多数据，在查询时就会减少 I/O 次数。其缺点是需要管理冗余列，查询所有数据需要联合（JOIN）操作。
+
+- 水平拆分，即按把一部分行存在一个表，把另外一些行存在另外一个表中。
+    - 表很大，分割后可以降低在查询时需要读的数据和索引的页数，同时也降低了索引的层级，提高查询速度。
+    - 表中的数据本来就有独立性。例如，表中数据分别记录各个地区的数据或不同时期的数据，特别是有些数据常用，有些数据不常用。
+    - 需要将表的数据存放在多个介质上。
+
+## 逆规范化
+
+![19.3逆规范化1.jpg](img/19.3逆规范化1.jpg)
+
+![19.3逆规范化2.jpg](img/19.3逆规范化2.jpg)
