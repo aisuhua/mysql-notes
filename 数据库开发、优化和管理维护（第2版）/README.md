@@ -3622,3 +3622,111 @@ mysql> select id, sha1, file_size from oss_file_c200 where id > 70020 order by i
 +-------+------------------------------------------+-----------+
 10 rows in set (0.01 sec)
 ```
+
+## 使用 SQL 提示
+
+索引提示可以给到一些有关于优化器在查询期间应如何选择索引的信息。
+
+### USE INDEX
+
+在查询语句中表名的后面，添加 USER INDEX 来提供希望的 MySQL 去参考的索引列表，就可以让 MySQL 不再考虑其他可用索引。
+
+```sql
+mysql> show create table rental\G
+*************************** 1. row ***************************
+       Table: rental
+Create Table: CREATE TABLE `rental` (
+  `rental_id` int(11) NOT NULL AUTO_INCREMENT,
+  `rental_date` datetime NOT NULL,
+  `inventory_id` mediumint(8) unsigned NOT NULL,
+  `customer_id` smallint(5) unsigned NOT NULL,
+  `return_date` datetime DEFAULT NULL,
+  `staff_id` tinyint(3) unsigned NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`rental_id`),
+  UNIQUE KEY `rental_date` (`rental_date`,`inventory_id`,`customer_id`),
+  KEY `idx_fk_inventory_id` (`inventory_id`),
+  KEY `idx_fk_customer_id` (`customer_id`),
+  KEY `idx_fk_staff_id` (`staff_id`),
+  CONSTRAINT `fk_rental_customer` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`customer_id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_rental_inventory` FOREIGN KEY (`inventory_id`) REFERENCES `inventory` (`inventory_id`) ON UPDATE CASCADE,
+  CONSTRAINT `fk_rental_staff` FOREIGN KEY (`staff_id`) REFERENCES `staff` (`staff_id`) ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=16050 DEFAULT CHARSET=utf8
+1 row in set (0.00 sec)
+
+# 默认使用 idx_fk_staff_id 索引
+mysql> explain select count(*) from rental;
++----+-------------+--------+------------+-------+---------------+-----------------+---------+------+-------+----------+-------------+
+| id | select_type | table  | partitions | type  | possible_keys | key             | key_len | ref  | rows  | filtered | Extra       |
++----+-------------+--------+------------+-------+---------------+-----------------+---------+------+-------+----------+-------------+
+|  1 | SIMPLE      | rental | NULL       | index | NULL          | idx_fk_staff_id | 1       | NULL | 16008 |   100.00 | Using index |
++----+-------------+--------+------------+-------+---------------+-----------------+---------+------+-------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+# 提示使用 rental_date 索引
+mysql> explain select count(*) from rental use index(rental_date);
++----+-------------+--------+------------+-------+---------------+-------------+---------+------+-------+----------+-------------+
+| id | select_type | table  | partitions | type  | possible_keys | key         | key_len | ref  | rows  | filtered | Extra       |
++----+-------------+--------+------------+-------+---------------+-------------+---------+------+-------+----------+-------------+
+|  1 | SIMPLE      | rental | NULL       | index | NULL          | rental_date | 10      | NULL | 16008 |   100.00 | Using index |
++----+-------------+--------+------------+-------+---------------+-------------+---------+------+-------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+```
+
+### IGNORE INDEX
+
+如果用户只是单纯地想让 MySQL 忽略一个或多个索引，则可以使用 IGNORE INDEX 作为提示。
+
+```sql
+# 默认使用 idx_fk_staff_id 索引
+mysql> explain select count(*) from rental;
++----+-------------+--------+------------+-------+---------------+-----------------+---------+------+-------+----------+-------------+
+| id | select_type | table  | partitions | type  | possible_keys | key             | key_len | ref  | rows  | filtered | Extra       |
++----+-------------+--------+------------+-------+---------------+-----------------+---------+------+-------+----------+-------------+
+|  1 | SIMPLE      | rental | NULL       | index | NULL          | idx_fk_staff_id | 1       | NULL | 16008 |   100.00 | Using index |
++----+-------------+--------+------------+-------+---------------+-----------------+---------+------+-------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+# 提示忽略 idx_fk_staff_id 索引，所以使用了另外一个索引 idx_fk_customer_id
+mysql> explain select count(*) from rental ignore index (idx_fk_staff_id);
++----+-------------+--------+------------+-------+---------------+--------------------+---------+------+-------+----------+-------------+
+| id | select_type | table  | partitions | type  | possible_keys | key                | key_len | ref  | rows  | filtered | Extra       |
++----+-------------+--------+------------+-------+---------------+--------------------+---------+------+-------+----------+-------------+
+|  1 | SIMPLE      | rental | NULL       | index | NULL          | idx_fk_customer_id | 2       | NULL | 16008 |   100.00 | Using index |
++----+-------------+--------+------------+-------+---------------+--------------------+---------+------+-------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+```
+
+### FORCE INDEX
+
+当强制 MySQL 使用一个特定索引，可以在查询中使用 FORCE INDEX 作为提示。
+例如，当不强制使用索引的时候，因为大部分库存 inventory_id 的值都大于 1 的，因此 MySQL 会默认进行全表扫描， 而不用索引。
+
+```sql
+# 默认情况下是全表扫描
+mysql> explain select * from rental where inventory_id > 1;
++----+-------------+--------+------------+------+---------------------+------+---------+------+-------+----------+-------------+
+| id | select_type | table  | partitions | type | possible_keys       | key  | key_len | ref  | rows  | filtered | Extra       |
++----+-------------+--------+------------+------+---------------------+------+---------+------+-------+----------+-------------+
+|  1 | SIMPLE      | rental | NULL       | ALL  | idx_fk_inventory_id | NULL | NULL    | NULL | 16008 |    50.00 | Using where |
++----+-------------+--------+------------+------+---------------------+------+---------+------+-------+----------+-------------+
+1 row in set, 1 warning (0.12 sec)
+
+# USER INDEX 依然是全表扫描
+mysql> explain select * from rental use index (idx_fk_inventory_id) where inventory_id > 1;
++----+-------------+--------+------------+------+---------------------+------+---------+------+-------+----------+-------------+
+| id | select_type | table  | partitions | type | possible_keys       | key  | key_len | ref  | rows  | filtered | Extra       |
++----+-------------+--------+------------+------+---------------------+------+---------+------+-------+----------+-------------+
+|  1 | SIMPLE      | rental | NULL       | ALL  | idx_fk_inventory_id | NULL | NULL    | NULL | 16008 |    50.00 | Using where |
++----+-------------+--------+------------+------+---------------------+------+---------+------+-------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+# FORCE INDEX 则强制使用了 idx_fk_inventory_id 索引
+mysql> explain select * from rental force index (idx_fk_inventory_id) where inventory_id > 1;
++----+-------------+--------+------------+-------+---------------------+---------------------+---------+------+------+----------+-----------------------+
+| id | select_type | table  | partitions | type  | possible_keys       | key                 | key_len | ref  | rows | filtered | Extra                 |
++----+-------------+--------+------------+-------+---------------------+---------------------+---------+------+------+----------+-----------------------+
+|  1 | SIMPLE      | rental | NULL       | range | idx_fk_inventory_id | idx_fk_inventory_id | 3       | NULL | 8004 |   100.00 | Using index condition |
++----+-------------+--------+------------+-------+---------------------+---------------------+---------+------+------+----------+-----------------------+
+1 row in set, 1 warning (0.00 sec)
+```
