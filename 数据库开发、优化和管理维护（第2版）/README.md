@@ -3435,4 +3435,190 @@ mysql> explain select * from customer where customer_id = 500 or active = 1;
 
 - [8.2.1.1 WHERE Clause Optimization](https://dev.mysql.com/doc/refman/5.7/en/where-optimization.html)
 
+## 优化分页查询
 
+LIMIT 1000, 10 MySQL 会先排序出 1010 条记录后仅仅返回第 10001 到 10010 条记录，前 1000 条记录都会被抛弃，查询和排序的代价都很高。
+
+### 优化方法1：在索引上完成排序分页的操作，最后根据主键关联回原表查询所需的其他列内容。
+
+```sql
+mysql> show create table oss_file_c200\G
+*************************** 1. row ***************************
+       Table: oss_file_c200
+Create Table: CREATE TABLE `oss_file_c200` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键id',
+  `sha1` char(40) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '文件sha1',
+  `file_size` bigint(20) NOT NULL DEFAULT '0' COMMENT '文件大小',
+  `file_type` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '文件类型',
+  `object_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '文件object_id',
+  `state` tinyint(3) NOT NULL DEFAULT '0' COMMENT '状态',
+  `checked` tinyint(3) NOT NULL DEFAULT '0' COMMENT '是否校验',
+  `k` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '标识',
+  `update_time` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '更新时间',
+  `create_time` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '创建时间',
+  `error` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '更新失败原因',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `sha1` (`sha1`)
+) ENGINE=InnoDB AUTO_INCREMENT=1070001 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+1 row in set (0.00 sec)
+
+# 优化前
+mysql> select id, sha1, file_size from oss_file_c200 order by sha1 limit 100000, 10;
++--------+------------------------------------------+------------+
+| id     | sha1                                     | file_size  |
++--------+------------------------------------------+------------+
+| 153853 | 19A26204A2B8ADC4B67B07947D952A42F0507B08 |  382730919 |
+| 355592 | 19A271A0CF0ABA95F7EEEF54D898146075467188 | 1640977940 |
+| 949405 | 19A276363F816A58BC74C4E7DEBF9B980037F089 |    8978138 |
+| 761280 | 19A280DDD6E8521154FE5F49542826D54DBFFF89 |       2638 |
+| 104160 | 19A2891BA1C80A1C753819C74443D3A6AB81A588 |       1464 |
+| 662961 | 19A28DF1659F4216F984B3D3CF305587AAC0A509 |    9139268 |
+| 853593 | 19A28E1033A4BF3263608440F380D640426C2E89 |       1349 |
+| 776008 | 19A29DEBBC6C7EAF5CF510C9ABF0E00FAB3F4489 |     215024 |
+| 151333 | 19A2B3A9B040D588D43B2BFB86144A0103C2DC88 |        588 |
+| 585794 | 19A303C8BF725D85BDF48129185124166541DD88 |      70355 |
++--------+------------------------------------------+------------+
+10 rows in set (48.99 sec)
+
+mysql> explain select id, sha1, file_size from oss_file_c200 order by sha1 limit 100000, 10;
++----+-------------+---------------+------------+------+---------------+------+---------+------+--------+----------+----------------+
+| id | select_type | table         | partitions | type | possible_keys | key  | key_len | ref  | rows   | filtered | Extra          |
++----+-------------+---------------+------------+------+---------------+------+---------+------+--------+----------+----------------+
+|  1 | SIMPLE      | oss_file_c200 | NULL       | ALL  | NULL          | NULL | NULL    | NULL | 991335 |   100.00 | Using filesort |
++----+-------------+---------------+------------+------+---------------+------+---------+------+--------+----------+----------------+
+1 row in set, 1 warning (0.00 sec)
+
+# 优化后
+mysql> select a.id, sha1, file_size from oss_file_c200 as a
+    -> natural join
+    -> (select id from oss_file_c200 order by sha1 limit 100000, 10) as b;
++--------+------------------------------------------+------------+
+| id     | sha1                                     | file_size  |
++--------+------------------------------------------+------------+
+| 153853 | 19A26204A2B8ADC4B67B07947D952A42F0507B08 |  382730919 |
+| 355592 | 19A271A0CF0ABA95F7EEEF54D898146075467188 | 1640977940 |
+| 949405 | 19A276363F816A58BC74C4E7DEBF9B980037F089 |    8978138 |
+| 761280 | 19A280DDD6E8521154FE5F49542826D54DBFFF89 |       2638 |
+| 104160 | 19A2891BA1C80A1C753819C74443D3A6AB81A588 |       1464 |
+| 662961 | 19A28DF1659F4216F984B3D3CF305587AAC0A509 |    9139268 |
+| 853593 | 19A28E1033A4BF3263608440F380D640426C2E89 |       1349 |
+| 776008 | 19A29DEBBC6C7EAF5CF510C9ABF0E00FAB3F4489 |     215024 |
+| 151333 | 19A2B3A9B040D588D43B2BFB86144A0103C2DC88 |        588 |
+| 585794 | 19A303C8BF725D85BDF48129185124166541DD88 |      70355 |
++--------+------------------------------------------+------------+
+10 rows in set (0.01 sec)
+
+mysql> explain select a.id, sha1, file_size from oss_file_c200 as a
+    -> natural join
+    -> (select id from oss_file_c200 order by sha1 limit 100000, 10) as b;
++----+-------------+---------------+------------+--------+---------------+---------+---------+------+--------+----------+-------------+
+| id | select_type | table         | partitions | type   | possible_keys | key     | key_len | ref  | rows   | filtered | Extra       |
++----+-------------+---------------+------------+--------+---------------+---------+---------+------+--------+----------+-------------+
+|  1 | PRIMARY     | <derived2>    | NULL       | ALL    | NULL          | NULL    | NULL    | NULL | 100010 |   100.00 | NULL        |
+|  1 | PRIMARY     | a             | NULL       | eq_ref | PRIMARY       | PRIMARY | 8       | b.id |      1 |   100.00 | NULL        |
+|  2 | DERIVED     | oss_file_c200 | NULL       | index  | NULL          | sha1    | 160     | NULL | 100010 |   100.00 | Using index |
++----+-------------+---------------+------------+--------+---------------+---------+---------+------+--------+----------+-------------+
+3 rows in set, 1 warning (0.00 sec)
+
+mysql> select a.id, sha1, file_size from oss_file_c200 as a
+    -> inner join
+    -> (select id from oss_file_c200 order by sha1 limit 100000, 10) as b on a.id = b.id;
++--------+------------------------------------------+------------+
+| id     | sha1                                     | file_size  |
++--------+------------------------------------------+------------+
+| 153853 | 19A26204A2B8ADC4B67B07947D952A42F0507B08 |  382730919 |
+| 355592 | 19A271A0CF0ABA95F7EEEF54D898146075467188 | 1640977940 |
+| 949405 | 19A276363F816A58BC74C4E7DEBF9B980037F089 |    8978138 |
+| 761280 | 19A280DDD6E8521154FE5F49542826D54DBFFF89 |       2638 |
+| 104160 | 19A2891BA1C80A1C753819C74443D3A6AB81A588 |       1464 |
+| 662961 | 19A28DF1659F4216F984B3D3CF305587AAC0A509 |    9139268 |
+| 853593 | 19A28E1033A4BF3263608440F380D640426C2E89 |       1349 |
+| 776008 | 19A29DEBBC6C7EAF5CF510C9ABF0E00FAB3F4489 |     215024 |
+| 151333 | 19A2B3A9B040D588D43B2BFB86144A0103C2DC88 |        588 |
+| 585794 | 19A303C8BF725D85BDF48129185124166541DD88 |      70355 |
++--------+------------------------------------------+------------+
+10 rows in set (0.01 sec)
+
+mysql> explain select a.id, sha1, file_size from oss_file_c200 as a
+    -> inner join
+    -> (select id from oss_file_c200 order by sha1 limit 100000, 10) as b on a.id = b.id;
++----+-------------+---------------+------------+--------+---------------+---------+---------+------+--------+----------+-------------+
+| id | select_type | table         | partitions | type   | possible_keys | key     | key_len | ref  | rows   | filtered | Extra       |
++----+-------------+---------------+------------+--------+---------------+---------+---------+------+--------+----------+-------------+
+|  1 | PRIMARY     | <derived2>    | NULL       | ALL    | NULL          | NULL    | NULL    | NULL | 100010 |   100.00 | NULL        |
+|  1 | PRIMARY     | a             | NULL       | eq_ref | PRIMARY       | PRIMARY | 8       | b.id |      1 |   100.00 | NULL        |
+|  2 | DERIVED     | oss_file_c200 | NULL       | index  | NULL          | sha1    | 160     | NULL | 100010 |   100.00 | Using index |
++----+-------------+---------------+------------+--------+---------------+---------+---------+------+--------+----------+-------------+
+3 rows in set, 1 warning (0.00 sec)
+```
+
+### 优化方法2：记录上一页的最后一条记录id，然后使用 id > prev_last_id 的方式提取下一页记录
+
+```sql
+mysql> explain select id, sha1, file_size from oss_file_c200 where id > 0 order by id asc limit 10;
++----+-------------+---------------+------------+-------+---------------+---------+---------+------+--------+----------+-------------+
+| id | select_type | table         | partitions | type  | possible_keys | key     | key_len | ref  | rows   | filtered | Extra       |
++----+-------------+---------------+------------+-------+---------------+---------+---------+------+--------+----------+-------------+
+|  1 | SIMPLE      | oss_file_c200 | NULL       | range | PRIMARY       | PRIMARY | 8       | NULL | 495667 |   100.00 | Using where |
++----+-------------+---------------+------------+-------+---------------+---------+---------+------+--------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> explain select id, sha1, file_size from oss_file_c200 where id > 70020 order by id asc limit 10;
++----+-------------+---------------+------------+-------+---------------+---------+---------+------+--------+----------+-------------+
+| id | select_type | table         | partitions | type  | possible_keys | key     | key_len | ref  | rows   | filtered | Extra       |
++----+-------------+---------------+------------+-------+---------------+---------+---------+------+--------+----------+-------------+
+|  1 | SIMPLE      | oss_file_c200 | NULL       | range | PRIMARY       | PRIMARY | 8       | NULL | 495667 |   100.00 | Using where |
++----+-------------+---------------+------------+-------+---------------+---------+---------+------+--------+----------+-------------+
+1 row in set, 1 warning (0.00 sec)
+
+mysql> select id, sha1, file_size from oss_file_c200 where id > 0 order by id asc limit 10;
++-------+------------------------------------------+-----------+
+| id    | sha1                                     | file_size |
++-------+------------------------------------------+-----------+
+| 70001 | 9D5AB60E05EB87E77018F7AB31C4544A70BFC088 |  24366163 |
+| 70002 | 7E07365D2792C61A69532D8BA700955886752708 |  13515223 |
+| 70003 | FD9398081DE1DC5B535E423254BC7F84BC9C8B88 |   6148686 |
+| 70004 | 23AA74EF92D0F0CBD3F4658D872CE259BA239988 |     14487 |
+| 70005 | 96E3EE7FB5D114ED6D9674BC4C0E158B397C4F08 |   9633147 |
+| 70006 | 3BF0C0EACAE78708CEE9991EE0BA08487FDB6D08 |    945966 |
+| 70007 | C8FF35236DB4EA5127E8B01F57DD81A0BE78D688 | 149766780 |
+| 70008 | BFC89CF94D47E027E5BE6623A52582DC0FCC4108 |     93022 |
+| 70009 | 5D78CF42B1BA9504F9D459D806BF7B7FE139FE08 |    951621 |
+| 70010 | 1A0F14DA415B83B5644A833E41217C741EB09B08 |  37692794 |
++-------+------------------------------------------+-----------+
+10 rows in set (0.00 sec)
+
+mysql> select id, sha1, file_size from oss_file_c200 where id > 70010 order by id asc limit 10;
++-------+------------------------------------------+-----------+
+| id    | sha1                                     | file_size |
++-------+------------------------------------------+-----------+
+| 70011 | 2D3BD1C8EC2FB611F45A629945C91367AE709908 | 412937442 |
+| 70012 | 79C80A37DFAE2D9ED3B1BDB74EAB9B92A3596D08 |     60126 |
+| 70013 | 49C7AD1E042B70C7080E8256800365BADE9A5208 | 114430553 |
+| 70014 | 467322655FF3EDC44E680F012BD4FC8067E30088 |       287 |
+| 70015 | 404F369D49B75C0D980C2E187E5466C45D6DA688 |    564692 |
+| 70016 | 50CEE343952F44BFE7307E6A888A628BDE627088 |    173165 |
+| 70017 | 1CB843FD26EC875D93C61FA2A2BBB60B1B1F3688 |    158240 |
+| 70018 | A489CC8F3564F326652A8718872A0EA6E7D74508 |    131926 |
+| 70019 | 3221BB369F870679AE4F6337CE00F4866427D708 |     32256 |
+| 70020 | 8F3F2A8FA593D5CE7A48FD81CC14710B4610C988 |  20842063 |
++-------+------------------------------------------+-----------+
+10 rows in set (0.01 sec)
+
+mysql> select id, sha1, file_size from oss_file_c200 where id > 70020 order by id asc limit 10;
++-------+------------------------------------------+-----------+
+| id    | sha1                                     | file_size |
++-------+------------------------------------------+-----------+
+| 70021 | 3387213BAB676080B54B2BAFCDB51D9FEA5A9508 |    376828 |
+| 70022 | 1FF6BEE97A41B0F3A8113C5B8D743A7B39174788 |  22070060 |
+| 70023 | 5F148011F006FC28CC0C70B55AD0878EDDD5D108 |     77400 |
+| 70024 | 0A500D64E094E4A6D7FD915434CDBF3F7BC2D488 |      3107 |
+| 70025 | D7D219F1A7628E1CD58A14EC11BE235BE445D788 |      1026 |
+| 70026 | E86E03DE6E0E3FD9F560FAD629D74575DB608D88 |     14121 |
+| 70027 | 55C85F61E65DE54010CCC9DF3A2CA4E794C4A788 |       270 |
+| 70028 | 0FC81EB0D1A4BEFAE242D8AECCE9B25005106608 |     32740 |
+| 70029 | 17C469B83FC0592DDF7EBD2AE2122865D05B6308 | 212623112 |
+| 70030 | A27B0BE1965A2079D62502944D7EF88B457B4288 |     41852 |
++-------+------------------------------------------+-----------+
+10 rows in set (0.01 sec)
+```
