@@ -3730,3 +3730,172 @@ mysql> explain select * from rental force index (idx_fk_inventory_id) where inve
 +----+-------------+--------+------------+-------+---------------------+---------------------+---------+------+------+----------+-----------------------+
 1 row in set, 1 warning (0.00 sec)
 ```
+
+- [8.9.4 Index Hints](https://dev.mysql.com/doc/refman/5.7/en/index-hints.html)
+
+## 常用 SQL 技巧
+
+### 正则表达式 REGEXP
+
+```sql
+mysql> select 'abcdefg' regexp '^a.*g$';
++---------------------------+
+| 'abcdefg' regexp '^a.*g$' |
++---------------------------+
+|                         1 |
++---------------------------+
+1 row in set (0.06 sec)
+
+mysql> select 'abcdefg' regexp '[fhk]';
++--------------------------+
+| 'abcdefg' regexp '[fhk]' |
++--------------------------+
+|                        1 |
++--------------------------+
+1 row in set (0.00 sec)
+```
+
+### 巧用 rand() 提取随机行
+
+可以利用该函数与 ORDER BY 子句一起完成随机抽取某些行的功能。它的原理其实就是 ORDER BY RANGE() 能够把数据随机排序。
+
+```sql
+mysql> select rand();
++----------------------+
+| rand()               |
++----------------------+
+| 0.016676458545659165 |
++----------------------+
+1 row in set (0.00 sec)
+
+mysql> select rand();
++---------------------+
+| rand()              |
++---------------------+
+| 0.11931462876434869 |
++---------------------+
+1 row in set (0.00 sec)
+
+mysql> select * from category order by rand();
++-------------+-------------+---------------------+
+| category_id | name        | last_update         |
++-------------+-------------+---------------------+
+|          15 | Sports      | 2006-02-15 04:46:27 |
+|           3 | Children    | 2006-02-15 04:46:27 |
+|          11 | Horror      | 2006-02-15 04:46:27 |
+|          12 | Music       | 2006-02-15 04:46:27 |
+|          10 | Games       | 2006-02-15 04:46:27 |
+|          13 | New         | 2006-02-15 04:46:27 |
+|           7 | Drama       | 2006-02-15 04:46:27 |
+|          16 | Travel      | 2006-02-15 04:46:27 |
+|           4 | Classics    | 2006-02-15 04:46:27 |
+|           9 | Foreign     | 2006-02-15 04:46:27 |
+|           8 | Family      | 2006-02-15 04:46:27 |
+|           5 | Comedy      | 2006-02-15 04:46:27 |
+|           2 | Animation   | 2006-02-15 04:46:27 |
+|           6 | Documentary | 2006-02-15 04:46:27 |
+|           1 | Action      | 2006-02-15 04:46:27 |
+|          14 | Sci-Fi      | 2006-02-15 04:46:27 |
++-------------+-------------+---------------------+
+16 rows in set (0.00 sec)
+
+# 只抽取一部分样本
+mysql> select * from category order by rand() limit 3;
++-------------+----------+---------------------+
+| category_id | name     | last_update         |
++-------------+----------+---------------------+
+|           4 | Classics | 2006-02-15 04:46:27 |
+|          14 | Sci-Fi   | 2006-02-15 04:46:27 |
+|           9 | Foreign  | 2006-02-15 04:46:27 |
++-------------+----------+---------------------+
+3 rows in set (0.00 sec)
+```
+
+## 利用 GROUP BY 的 WITH ROLLUP 子句
+
+其实 WITH ROLLUP 反映了一种 OLAP 思想，也就是说一个 GROUP BY 语句执行完成后可以满足用户想得到的任何一个分组以及分组组合的聚合信息值。
+注意，当使用 WITH ROLLUP 时，不能同时用 ORDER BY 子句对结果进行排序。换言之，ROLLUP 和 ORDER BY 是互斥的。
+此外，LIMIT 用在 ROLLUP 后面。
+
+```sql
+mysql> select store_id, count(*) from customer group by store_id;
++----------+----------+
+| store_id | count(*) |
++----------+----------+
+|        1 |      326 |
+|        2 |      273 |
++----------+----------+
+2 rows in set (0.00 sec)
+
+# with rollup 能获取全部分组的总数
+mysql> select store_id, count(*) from customer group by store_id with rollup;
++----------+----------+
+| store_id | count(*) |
++----------+----------+
+|        1 |      326 |
+|        2 |      273 |
+|     NULL |      599 |
++----------+----------+
+3 rows in set (0.00 sec)
+```
+
+- [12.19.2 GROUP BY Modifiers](https://dev.mysql.com/doc/refman/5.7/en/group-by-modifiers.html)
+
+## 用 BIT GROUP FUNCTION 做统计
+
+BIT_OR、BIT_AND 是用于做数值之间的逻辑位运算。
+
+```sql
+mysql> create table order_rab(id int, customer_id int, kind int);
+Query OK, 0 rows affected (0.07 sec)
+
+mysql> insert into order_rab values(1, 1, 5), (2, 1, 4);
+Query OK, 2 rows affected (0.05 sec)
+Records: 2  Duplicates: 0  Warnings: 0
+
+mysql> insert into order_rab values(3, 2, 3), (4, 2, 4);
+Query OK, 2 rows affected (0.06 sec)
+Records: 2  Duplicates: 0  Warnings: 0
+
+mysql> select * from order_rab;
++------+-------------+------+
+| id   | customer_id | kind |
++------+-------------+------+
+|    1 |           1 |    5 |
+|    2 |           1 |    4 |
+|    3 |           2 |    3 |
+|    4 |           2 |    4 |
++------+-------------+------+
+4 rows in set (0.00 sec)
+
+mysql> select customer_id, count(*) from order_rab group by customer_id;
++-------------+----------+
+| customer_id | count(*) |
++-------------+----------+
+|           1 |        2 |
+|           2 |        2 |
++-------------+----------+
+2 rows in set (0.00 sec)
+
+# 顾客购买过的产品
+mysql> select customer_id, bit_or(kind) from order_rab group by customer_id;
++-------------+--------------+
+| customer_id | bit_or(kind) |
++-------------+--------------+
+|           1 |            5 |
+|           2 |            7 |
++-------------+--------------+
+2 rows in set (0.00 sec)
+
+# 顾客每次都购买的商品
+mysql> select customer_id, bit_and(kind) from order_rab group by customer_id;
++-------------+---------------+
+| customer_id | bit_and(kind) |
++-------------+---------------+
+|           1 |             4 |
+|           2 |             0 |
++-------------+---------------+
+2 rows in set (0.00 sec)
+```
+
+- [12.19.1 Aggregate (GROUP BY) Function Descriptions](https://dev.mysql.com/doc/refman/5.7/en/group-by-functions.html)
