@@ -3899,3 +3899,21 @@ mysql> select customer_id, bit_and(kind) from order_rab group by customer_id;
 ```
 
 - [12.19.1 Aggregate (GROUP BY) Function Descriptions](https://dev.mysql.com/doc/refman/5.7/en/group-by-functions.html)
+
+## 数据库名、表名大小写问题
+
+在 MySQL 中，数据库对应操作系统下的数据目录。数据库中的每一个表至少对应数据库目录中的一个文件（也可能有多个，这取决与存储引擎）。
+因此，所使用操作系统的大小写敏感性决定了数据库名和表名的大小写敏感性。
+
+列、索引、存储子程序和触发器名在任何平台上对大小写不敏感。
+
+对大小写的处理方式，可以通过修改系统变量实现。
+
+```sql
+[mysqld]
+lower_case_table_names = 0
+```
+
+- [server-system-variables.html#sysvar_lower_case_table_names](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_lower_case_table_names)
+- [9.2.2 Identifier Case Sensitivity](https://dev.mysql.com/doc/refman/5.7/en/identifier-case-sensitivity.html)
+
