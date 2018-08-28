@@ -4040,3 +4040,214 @@ mysql> alter table oss_file_c200 modify object_id char(40) not null;
 ![19.4使用中间表提高统计查询速度1.jpg](img/19.4使用中间表提高统计查询速度1.jpg)
 
 ![19.4使用中间表提高统计查询速度2.jpg](img/19.4使用中间表提高统计查询速度2.jpg)
+
+# 锁问题
+
+## MySQL 锁概述
+
+MyISAM 和 MEMORY 存储引擎采用的是表级锁；BDB引擎采用的是页面锁，但也支持表级锁；
+InnoDB 存储引擎既支持行级锁，也支持表级锁，但默认情况下是采用行级锁。
+
+- 表级锁：开销少，加锁快；不会出现死锁；锁定的粒度大，发生锁冲突的概率最高，并发度低。
+- 行级锁：开销大，加锁慢；会出现死锁；锁定粒度最小，发生冲突的概率最低，并发度最高。
+- 页面锁：开销和加锁时间界于表锁很行锁之间；会出现死锁；锁定粒度表锁界于表锁和行锁之间，并发度一般。
+
+## MyISAM 表锁
+
+### 查询表级锁争用情况
+
+如果 Table_locks_waited 的值比较高，则说明存在着比较严重的表级锁争用情况。
+
+```sql
+mysql> show status like "table%";
++----------------------------+-------------+
+| Variable_name              | Value       |
++----------------------------+-------------+
+| Table_locks_immediate      | 26244499331 |
+| Table_locks_waited         | 478512      |
+| Table_open_cache_hits      | 0           |
+| Table_open_cache_misses    | 0           |
+| Table_open_cache_overflows | 0           |
++----------------------------+-------------+
+5 rows in set (0.00 sec)
+```
+
+### MyISAM 表级锁的锁模式
+
+MySQL 的表级锁有两种模式：表共享读锁和表独占写锁。
+
+MyISAM 在执行查询语句（SELECT）前，会自动给涉及的所有表加读锁，在执行更新操作前（UPDATE、DELETE、INSERT）前，
+会自动给涉及的表加写锁，这个过程并不需要用户干预，因此，用户一般不需要用 LOCK TABLE 命令给 MyISAM 表显式加锁。
+
+在用 LOCK TABLE 给表显示加表锁时，必须同时取得所有涉及表的锁，并且 MySQL 不支持锁升级，
+也就是说，在执行 LOCK TABLE 后，只能访问显示加锁的这些表，不能访问未加锁的表；
+同时，如果加的是读锁，那么只能执行查询操作，而不能执行更新操作，在自动加锁的情况下也是如此。
+MyISAM 总是一次获得 SQL 语句所需要的全部锁，这也正是 MyISAM 表不会出现死锁的原因。
+
+当一个线程获得对一个表的写锁后，只有持有锁的线程可以对表进行更新和读操作；
+其他线程的读、写操作都会等待，直到锁被释放为止。
+
+```sql
+mysql> create table demo (id int, name varchar(10)) engine myisam;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> insert into demo values(1, 'suhua'), (2, 'xiaozhang'), (3, 'google');
+Query OK, 3 rows affected (0.00 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql> lock table demo write;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> select * from demo;
++------+-----------+
+| id   | name      |
++------+-----------+
+|    1 | suhua     |
+|    2 | xiaozhang |
+|    3 | google    |
++------+-----------+
+3 rows in set (0.00 sec)
+
+mysql> insert into demo values(4, 'facebook');
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from demo;
++------+-----------+
+| id   | name      |
++------+-----------+
+|    1 | suhua     |
+|    2 | xiaozhang |
+|    3 | google    |
+|    4 | facebook  |
++------+-----------+
+4 rows in set (0.00 sec)
+
+mysql> update demo set name = 'youtube' where name = 'google';
+Query OK, 1 row affected (0.00 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql> select * from demo;
++------+-----------+
+| id   | name      |
++------+-----------+
+|    1 | suhua     |
+|    2 | xiaozhang |
+|    3 | youtube   |
+|    4 | facebook  |
++------+-----------+
+4 rows in set (0.00 sec)
+
+mysql> unlock tables;
+Query OK, 0 rows affected (0.00 sec)
+```
+
+当一个线程获得对一个表的读锁后，不会阻塞其他线程对同一个表的读操作，但是会阻塞对同一个表的写操作。
+
+```sql
+mysql> lock table demo read;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> select * from demo;
++------+-----------+
+| id   | name      |
++------+-----------+
+|    1 | suhua     |
+|    2 | xiaozhang |
+|    3 | youtube   |
+|    4 | facebook  |
++------+-----------+
+4 rows in set (0.00 sec)
+
+# 只能操作获得锁的表
+mysql> select * from kv;
+ERROR 1100 (HY000): Table 'kv' was not locked with LOCK TABLES
+
+# 读锁不能写
+mysql> insert into demo values (5, 'google');
+ERROR 1099 (HY000): Table 'demo' was locked with a READ lock and can't be updated
+mysql> update demo set name = 'google' where id = 3;
+ERROR 1099 (HY000): Table 'demo' was locked with a READ lock and can't be updated
+
+mysql> unlock tables;
+Query OK, 0 rows affected (0.00 sec)
+```
+
+### 并发插入（concurrent insert）
+
+在一定条件下，MyISAM 也支持查询和插入的并发执行。
+
+MyISAM 存储引擎有一个系统变量 concurrent_insert，专门用以控制其并发插入行为，其值分别可以为 0、1 或 2。
+
+- 当 concurrent_insert = 0 时，不允许并发插入。
+- 当 concurrent_insert = 1 时，如果 MyISAM 表中没有空洞（即表的中间没有被删除的行），
+MyISAM 允许在一个进程读表的同时，另一个进程从表尾插入记录。这也是 MySQL 的默认设置。
+- 当 concurrent_insert = 2 时，无论 MyISAM 表中有没有空洞，都允许在表尾并发插入记录。
+
+若一个线程获得一个表的 READ LOCAL 表，该线程可以对表进行查询操作，但不能对表进行更新操作；
+其他线程虽不能对表进行删除和更新操作，但却可以对该表进行并发插入操作（若该表中间不存在空洞）。
+
+```sql
+# session1
+mysql> lock table demo read local;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> select * from demo;
++------+-----------+
+| id   | name      |
++------+-----------+
+|    1 | suhua     |
+|    2 | xiaozhang |
+|    3 | google    |
+|    4 | facebook  |
++------+-----------+
+4 rows in set (0.00 sec)
+
+mysql> insert into demo values (5, 'baidu');
+ERROR 1099 (HY000): Table 'demo' was locked with a READ lock and can't be updated
+
+# session2 可以插入记录
+mysql> insert into demo values (5, 'baidu');
+Query OK, 1 row affected (0.00 sec)
+
+mysql> select * from demo;
++------+-----------+
+| id   | name      |
++------+-----------+
+|    1 | suhua     |
+|    2 | xiaozhang |
+|    3 | google    |
+|    4 | facebook  |
+|    5 | baidu     |
++------+-----------+
+5 rows in set (0.00 sec)
+
+# session1 此时查看不了 session2 所新插入的记录
+mysql> select * from demo;
++------+-----------+
+| id   | name      |
++------+-----------+
+|    1 | suhua     |
+|    2 | xiaozhang |
+|    3 | google    |
+|    4 | facebook  |
++------+-----------+
+4 rows in set (0.00 sec)
+mysql> unlock tables;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> select * from demo;
++------+-----------+
+| id   | name      |
++------+-----------+
+|    1 | suhua     |
+|    2 | xiaozhang |
+|    3 | google    |
+|    4 | facebook  |
+|    5 | baidu     |
++------+-----------+
+5 rows in set (0.00 sec)
+```
+
+### MyISAM 的锁调度
+
+![20.2.5MyISAM的锁调度.jpg](img/20.2.5MyISAM的锁调度.jpg)
