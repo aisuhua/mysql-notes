@@ -4183,6 +4183,8 @@ MyISAM 存储引擎有一个系统变量 concurrent_insert，专门用以控制�
 MyISAM 允许在一个进程读表的同时，另一个进程从表尾插入记录。这也是 MySQL 的默认设置。
 - 当 concurrent_insert = 2 时，无论 MyISAM 表中有没有空洞，都允许在表尾并发插入记录。
 
+- [8.11.3 Concurrent Inserts](https://dev.mysql.com/doc/refman/5.7/en/concurrent-inserts.html)
+
 若一个线程获得一个表的 READ LOCAL 表，该线程可以对表进行查询操作，但不能对表进行更新操作；
 其他线程虽不能对表进行删除和更新操作，但却可以对该表进行并发插入操作（若该表中间不存在空洞）。
 
@@ -4251,3 +4253,7 @@ mysql> select * from demo;
 ### MyISAM 的锁调度
 
 ![20.2.5MyISAM的锁调度.jpg](img/20.2.5MyISAM的锁调度.jpg)
+
+## InnoDB 行锁
+
+- [14.5 InnoDB Locking and Transaction Model](https://dev.mysql.com/doc/refman/5.7/en/innodb-locking-transaction-model.html)
