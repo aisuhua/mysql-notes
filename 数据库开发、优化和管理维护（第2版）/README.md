@@ -4309,3 +4309,26 @@ srv_master_thread log flush and writes: 112304
 - [14.5 InnoDB Locking and Transaction Model](https://dev.mysql.com/doc/refman/5.7/en/innodb-locking-transaction-model.html)
 - [14.5.2.1 Transaction Isolation Levels](https://dev.mysql.com/doc/refman/5.7/en/innodb-transaction-isolation-levels.html)
 - [server-system-variables.html#sysvar_transaction_isolation](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_transaction_isolation)
+
+# 应用优化
+
+- 使用连接池
+- 减少对 MySQL 的访问
+    - 避免对同一数据做重复检索
+    - 使用查询缓存
+    - 增加应用 Cache 层
+- 负载均衡
+    - 利用 MySQL 复制分流查询操作（主从/主主）
+    - 采用分布式数据库架构
+
+参考
+
+- [8.10.3 The MySQL Query Cache](https://dev.mysql.com/doc/refman/5.7/en/query-cache.html)
+
+# MySQL 高级安装和升级
+
+- [Chapter 2 Installing and Upgrading MySQL](https://dev.mysql.com/doc/refman/5.7/en/installing.html)
+
+# MySQL 中的常用工具
+
+- [4.5 MySQL Client Programs](https://dev.mysql.com/doc/refman/5.7/en/programs-client.html)
