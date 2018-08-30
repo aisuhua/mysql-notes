@@ -4664,6 +4664,8 @@ option 有以下常用选项：
 
 ### mysqldump 数据导出工具
 
+- [4.5.4 mysqldump — A Database Backup Program](https://dev.mysql.com/doc/refman/5.7/en/mysqldump.html)
+
 ```sh
 shell> mysqldump [options] db_name [tbl_name ...]
 shell> mysqldump [options] --databases db_name ...
@@ -4721,4 +4723,187 @@ mysqldump -h localhost -u root -p mydb -T /tmp/mysql
 
 root@ubuntu-test:/tmp/mysql# ls
 demo.sql  demo.txt  test.sql  test.txt
+```
+
+### mysqlhotcopy MyISAM 表热备份工具
+
+- [mysqlhotcopy(1) - Linux man page](https://linux.die.net/man/1/mysqlhotcopy)
+
+### mysqlimport 数据导入工具
+
+mysqlimport 是客户端数据导入工具，用来导入 mysqldump 加 -T 选项后导出的文本文件。
+它实际上是客户端提供了 LOAD DATA INFILE 语句的一个命令行接口，用法与它非常相似。
+
+- [4.5.5 mysqlimport — A Data Import Program](https://dev.mysql.com/doc/refman/5.7/en/mysqlimport.html)
+
+### mysqlshow 数据库对象查看工具
+
+mysqlshow 客户端对象查找工具，用来很快地查找存在哪些数据库、数据库中的表、表中的列和索引。
+
+mysql 客户端中的查看方法
+
+```sql
+# 查看所有数据库
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| crashcourse        |
+| mydb               |
+| mysql              |
+| ossid_115          |
+| performance_schema |
+| sakila             |
+| sys                |
++--------------------+
+
+# 查看表的所有列信息
+mysql> show full columns from demo;
++-------+-------------+--------------------+------+-----+---------+----------------+---------------------------------+----------+
+| Field | Type        | Collation          | Null | Key | Default | Extra          | Privileges                      | Comment  |
++-------+-------------+--------------------+------+-----+---------+----------------+---------------------------------+----------+
+| id    | int(11)     | NULL               | NO   | PRI | NULL    | auto_increment | select,insert,update,references | 主键ID   |
+| name  | varchar(10) | utf8mb4_unicode_ci | NO   |     | NULL    |                | select,insert,update,references | 姓名     |
++-------+-------------+--------------------+------+-----+---------+----------------+---------------------------------+----------+
+2 rows in set (0.00 sec)
+
+# 查看所有索引信息
+mysql> show index from demo;
++-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| Table | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
++-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| demo  |          0 | PRIMARY  |            1 | id          | A         |           3 |     NULL | NULL   |      | BTREE      |         |               |
++-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+1 row in set (0.00 sec)
+
+# 查看表的状态信息
+mysql> show table status like "demo"\G
+*************************** 1. row ***************************
+           Name: demo
+         Engine: InnoDB
+        Version: 10
+     Row_format: Dynamic
+           Rows: 3
+ Avg_row_length: 5461
+    Data_length: 16384
+Max_data_length: 0
+   Index_length: 0
+      Data_free: 0
+ Auto_increment: 4
+    Create_time: 2018-08-30 14:04:06
+    Update_time: 2018-08-30 14:04:43
+     Check_time: NULL
+      Collation: utf8mb4_unicode_ci
+       Checksum: NULL
+ Create_options:
+        Comment: 示例表
+1 row in set (0.00 sec)
+```
+
+mysqlshow 的查看方法
+
+#### 查看所有数据库
+
+```sql
+root@ubuntu-test:/www/web# mysqlshow -h localhost -u root -p
+Enter password:
++--------------------+
+|     Databases      |
++--------------------+
+| information_schema |
+| crashcourse        |
+| mydb               |
+| mysql              |
+| ossid_115          |
+| performance_schema |
+| sakila             |
+| sys                |
++--------------------+
+
+# 相当于
+mysql> show databases;
+```
+
+#### --count 显示数据库和表的统计信息
+
+如果不指定数据库，则显示每个数据库的名称、表数据、记录数量；
+如果指定数据库、则显示指定数据库的每个表名、字段数量、记录数量；
+如果指定具体数据库中的具体表，则显示表的字段信息。
+
+不指定数据库
+
+```sql
+root@ubuntu-test:/www/web# mysqlshow -h localhost -u root -p --count
+Enter password:
++--------------------+--------+--------------+
+|     Databases      | Tables |  Total Rows  |
++--------------------+--------+--------------+
+| information_schema |     61 |        21809 |
+| crashcourse        |     17 |          112 |
+| mydb               |      2 |            6 |
+| mysql              |     31 |         3189 |
+| ossid_115          |      4 |      1000014 |
+| performance_schema |     87 |        40737 |
+| sakila             |     26 |        50086 |
+| sys                |    101 |         6141 |
++--------------------+--------+--------------+
+8 rows in set.
+```
+
+指定数据库
+
+```sql
+root@ubuntu-test:/www/web# mysqlshow -h localhost -u root -p mydb --count
+Enter password:
+Database: mydb
++--------+----------+------------+
+| Tables | Columns  | Total Rows |
++--------+----------+------------+
+| demo   |        2 |          3 |
+| test   |        2 |          3 |
++--------+----------+------------+
+2 rows in set.
+```
+
+指定数据库和表
+
+```sql
+root@ubuntu-test:/www/web# mysqlshow -h localhost -u root -p mydb demo --count
+Enter password:
+Database: mydb  Table: demo  Rows: 3
++-------+-------------+--------------------+------+-----+---------+----------------+---------------------------------+----------+
+| Field | Type        | Collation          | Null | Key | Default | Extra          | Privileges                      | Comment  |
++-------+-------------+--------------------+------+-----+---------+----------------+---------------------------------+----------+
+| id    | int(11)     |                    | NO   | PRI |         | auto_increment | select,insert,update,references | 主键ID |
+| name  | varchar(10) | utf8mb4_unicode_ci | NO   |     |         |                | select,insert,update,references | 姓名   |
++-------+-------------+--------------------+------+-----+---------+----------------+---------------------------------+----------+
+
+# 相当于
+mysql> show full columns from demo;
+```
+
+#### -k 或者 --keys 显示指定表中的所有索引
+
+此选项显示了两部分内容，一部分是指定表的结构，另一部分是指定表的当前索引信息。
+
+```sql
+root@ubuntu-test:/www/web# mysqlshow -h localhost -u root -p mydb demo -k
+Enter password:
+Database: mydb  Table: demo
++-------+-------------+--------------------+------+-----+---------+----------------+---------------------------------+----------+
+| Field | Type        | Collation          | Null | Key | Default | Extra          | Privileges                      | Comment  |
++-------+-------------+--------------------+------+-----+---------+----------------+---------------------------------+----------+
+| id    | int(11)     |                    | NO   | PRI |         | auto_increment | select,insert,update,references | 主键ID |
+| name  | varchar(10) | utf8mb4_unicode_ci | NO   |     |         |                | select,insert,update,references | 姓名   |
++-------+-------------+--------------------+------+-----+---------+----------------+---------------------------------+----------+
++-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| Table | Non_unique | Key_name | Seq_in_index | Column_name | Collation | Cardinality | Sub_part | Packed | Null | Index_type | Comment | Index_comment |
++-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+| demo  | 0          | PRIMARY  | 1            | id          | A         | 3           |          |        |      | BTREE      |         |               |
++-------+------------+----------+--------------+-------------+-----------+-------------+----------+--------+------+------------+---------+---------------+
+
+# 相当于
+mysql> show full columns from demo;
+mysql> show index from demo;
 ```
