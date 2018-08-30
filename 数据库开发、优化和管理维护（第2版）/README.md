@@ -4344,6 +4344,8 @@ srv_master_thread log flush and writes: 112304
 
 ## mysql 客户端连接工具
 
+- [4.5.1 mysql — The MySQL Command-Line Tool](https://dev.mysql.com/doc/refman/5.7/en/mysql.html)
+
 ```sql
 # 语法
 mysql [OPTIONS][database]
@@ -4624,3 +4626,38 @@ insert into demo values(3)
 --------------
 ```
 
+### myisampack MyISAM 表压缩工具
+
+- [4.6.5 myisampack — Generate Compressed, Read-Only MyISAM Tables](https://dev.mysql.com/doc/refman/5.7/en/myisampack.html)
+
+### mysqladmin MySQL 管理工具
+
+mysqladmin 是一个执行管理操作的客户端程序。可以用它来检测服务器的配置和当前的状态、创建并删除数据库等。
+它的功能和 mysql 客户端非常相似，主要区别在于它更侧重于一些管理方面的能力。
+
+- [4.5.2 mysqladmin — Client for Administering a MySQL Server](https://dev.mysql.com/doc/refman/5.7/en/mysqladmin.html)
+
+### mysqlbinlog 日志管理工具
+
+由于服务器生成的二进制日志文件以二进制格式保存，所以如果想要检查这些文件的文本格式，就会用到 mysqlbinlog 日志管理工具。
+
+- [4.6.7 mysqlbinlog — Utility for Processing Binary Log Files](https://dev.mysql.com/doc/refman/5.7/en/mysqlbinlog.html)
+
+### mysqlcheck 表维护工具
+
+mysqlcheck 客户端工具可以检查和修改表，还可以优化和分析表。
+实际上，他集成了 mysql 工具中 check、repair、analyze、optimize 的功能。
+
+```
+shell> mysqlcheck [options] db_name [tbl_name ...]
+shell> mysqlcheck [options] --databases db_name ...
+shell> mysqlcheck [options] --all-databases
+
+option 有以下常用选项：
+-c, --check 检查表
+-r, --repair 修复表
+-a, --analyze 分析表
+-o, --optimize 优化表
+```
+
+- [4.5.3 mysqlcheck — A Table Maintenance Program](https://dev.mysql.com/doc/refman/5.7/en/mysqlcheck.html)
