@@ -4661,3 +4661,64 @@ option 有以下常用选项：
 ```
 
 - [4.5.3 mysqlcheck — A Table Maintenance Program](https://dev.mysql.com/doc/refman/5.7/en/mysqlcheck.html)
+
+### mysqldump 数据导出工具
+
+```sh
+shell> mysqldump [options] db_name [tbl_name ...]
+shell> mysqldump [options] --databases db_name ...
+shell> mysqldump [options] --all-databases
+```
+
+连接选项
+
+```
+-u, --user=name 指定用户名
+-p, --password 指定密码
+-h, --hostname 指定服务器IP或者域名
+-P, --port 指定连接端口
+```
+
+输出内容选项
+
+```
+--add-drop-database 每个数据库创建语句之前加上 DROP DATABASE 语句，默认没有
+--add-drop-table 每个表创建语句之前加上 DROP TABLE 语句，默认开启
+-n, --no-create-db 不包含数据库的创建语句
+-t, --no-create-info 不包含数据表的创建语句
+-d, --no-data 不包含数据
+-T, --tab 将数据备份为单纯的数据文本和建表 SQL 两个文件
+-F, --flush-logs 备份前刷新日志
+-l, --lock-tables 给所有备份的表加读锁
+```
+
+示例
+
+```sh
+# 导出单个库
+# 不包含创建库语句
+mysqldump -h localhost -u root -p mydb > /tmp/mysql/mydb.sql
+# 包含创建库语句
+mysqldump -h localhost -u root -p --databases mydb > /tmp/mysql/mydb.sql
+
+## 导出特定表
+mysqldump -h localhost -u root -p --databases mydb --tables demo > /tmp/mysql/mydb.sql
+
+# 指定导出时的客户端字符集
+mysqldump -h localhost -u root -p --default-character-set=utf8mb4 --databases mydb > /tmp/mysql/mydb.sql
+
+# 不包含数据（只导出DDL）
+mysqldump -h localhost -u root -p --no-data --databases mydb > /tmp/mysql/mydb.sql
+
+# 不包含数据库和数据表创建语句（只导出数据）
+mysqldump -h localhost -u root -p --no-create-db --no-create-info --databases mydb > /tmp/mysql/mydb.sql
+
+# 以简洁的方式导出（去掉注释、锁等）
+mysqldump -h localhost -u root -p --compact --databases mydb > /tmp/mysql/mydb.sql
+
+# 将数据和建表语句分开两个文件
+mysqldump -h localhost -u root -p mydb -T /tmp/mysql
+
+root@ubuntu-test:/tmp/mysql# ls
+demo.sql  demo.txt  test.sql  test.txt
+```
