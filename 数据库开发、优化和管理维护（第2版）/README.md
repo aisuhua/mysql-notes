@@ -4259,3 +4259,296 @@ mysql> select * from demo;
 - [14.5 InnoDB Locking and Transaction Model](https://dev.mysql.com/doc/refman/5.7/en/innodb-locking-transaction-model.html)
 - [14.5.2.1 Transaction Isolation Levels](https://dev.mysql.com/doc/refman/5.7/en/innodb-transaction-isolation-levels.html)
 - [server-system-variables.html#sysvar_transaction_isolation](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_transaction_isolation)
+
+# 优化 MySQL Server
+
+- MySQL 内存管理及优化
+- InnoDB log 机制及优化
+- 调整 MySQL 并发相关参数
+
+- [14.14 InnoDB Startup Options and System Variables](https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html)
+- [5.1.7 Server System Variables](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html)
+
+# MySQL 中的常用工具
+
+## mysql 客户端连接工具
+
+```sql
+# 语法
+mysql [OPTIONS][database]
+-u, --user=name 指定用户名
+-p, --password 指定密码
+-h, --hostname 指定服务器IP或者域名
+-P, --port 指定连接端口
+
+# 在默认情况下，如果这些选项都不写，那么 mysql 将会使用'用户'@'localhost'和空密码连接本机（localhost）上的 3306 端口。
+```
+
+### 设置客户端字符集
+
+```sql
+# 连接数据库时设置
+root@ubuntu-test:~# mysql -u root -h localhost -p --default-character-set=gbk
+Enter password:
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 60
+Server version: 5.7.23-0ubuntu0.16.04.1 (Ubuntu)
+
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> show variables like 'character%';
++--------------------------+----------------------------+
+| Variable_name            | Value                      |
++--------------------------+----------------------------+
+| character_set_client     | gbk                        |
+| character_set_connection | gbk                        |
+| character_set_database   | utf8mb4                    |
+| character_set_filesystem | binary                     |
+| character_set_results    | gbk                        |
+| character_set_server     | utf8mb4                    |
+| character_set_system     | utf8                       |
+| character_sets_dir       | /usr/share/mysql/charsets/ |
++--------------------------+----------------------------+
+8 rows in set (0.00 sec)
+
+# 连接数据库后进行设置
+mysql> set names utf8mb4;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> show variables like 'character%';
++--------------------------+----------------------------+
+| Variable_name            | Value                      |
++--------------------------+----------------------------+
+| character_set_client     | utf8mb4                    |
+| character_set_connection | utf8mb4                    |
+| character_set_database   | utf8mb4                    |
+| character_set_filesystem | binary                     |
+| character_set_results    | utf8mb4                    |
+| character_set_server     | utf8mb4                    |
+| character_set_system     | utf8                       |
+| character_sets_dir       | /usr/share/mysql/charsets/ |
++--------------------------+----------------------------+
+8 rows in set (0.00 sec)
+```
+
+### 执行语句
+
+```
+-e --execute=name 执行 SQL 语句并退出
+```
+
+此选项可以直接在 MySQL 客户端执行 SQL 语句，而不用连接到 MySQL 数据库后再执行，
+对于一些批处理脚本，这种方式尤其方便。
+
+```sql
+root@ubuntu-test:~# mysql -h localhost -u root -p mydb -e "select * from demo"
+Enter password:
++------+------------+
+| id   | name       |
++------+------------+
+|    1 | suhuazizi  |
+|    2 | xiaozhang  |
++------+------------+
+
+# 用分号隔开可以同时执行多条语句
+root@ubuntu-test:~# mysql -h localhost -u root -p mydb -e "select * from demo; show tables;"
+Enter password:
++------+------------+
+| id   | name       |
++------+------------+
+|    1 | suhuazizi  |
+|    2 | xiaozhang  |
++------+------------+
++----------------+
+| Tables_in_mydb |
++----------------+
+| demo           |
+| order_rab      |
++----------------+
+```
+
+### 格式化显示
+
+```
+-E, --vertical 将输出信息按照字段顺序竖着显示
+-s, --slient 去掉 mysql 中的线条框显示
+```
+
+`-E` 选项类似于在 mysql 里面执行 SQL 语句后加 `\G`，可以将输出内容比较多的行更清晰完整地进行显示。
+它经常和 `-e` 选项一起使用。
+
+```sql
+root@ubuntu-test:~# mysql -u root -p mydb -e "select * from demo" -E
+Enter password:
+*************************** 1. row ***************************
+  id: 1
+name: suhuazizi
+*************************** 2. row ***************************
+  id: 2
+name: xiaozhang
+```
+
+在 mysql 的安静模式下，`-s` 选项可以将输出中讨厌的线条框去掉，字段之间用 tab 进行分割，每条记录显示一行。
+
+```sql
+root@ubuntu-test:~# mysql -u root -p mydb -e "select * from mydb.demo" -s
+Enter password:
+id	name
+1	suhuazizi
+2	xiaozhang
+
+root@ubuntu-test:~# mysql -s -p
+Enter password:
+mysql> use mydb;
+mysql> show tables;
+Tables_in_mydb
+demo
+order_rab
+mysql> select * from demo;
+id	name
+1	suhuazizi
+2	xiaozhang
+```
+
+### 错误处理选项
+
+```
+-f, --force 强制执行 SQL
+-v, --verbose 显示更多信息
+--show-warnings 显示警告信息
+```
+
+在一个批量执行的 SQL 中，如果有其中一个 SQL 执行出错，正常情况下，该批处理将停止退出。
+加上 `-f` 选项，则跳过出错 SQL，强制执行后面的 SQL；加上 `-v` 选项，则显示出错的 SQL 语句；
+加上 --show-warnings，则会显示全部错误信息。
+
+这 3 个参数经常一起使用，在很多情况下会对用户很有帮助，比如加载数据。如果数据库中有语法错误的地方，
+则会将错误信息记录在日志中，而不会停止使得后面的正常 SQL 无法执行；而出错的语句，也可以在日志中得以查看，进行修复。
+
+```sql
+# 为方便测试先设置为严格模式
+mysql> set global sql_mode = 'tranditional'
+
+# 创建表
+mysql> create table demo (id int);
+
+root@ubuntu-test:~# cat data.sql
+insert into demo values(1);
+insert into demo values('2a');
+insert into demo values(3);
+
+# 出错时默认会中断执行
+root@ubuntu-test:~# mysql -h localhost -u root -p mydb < data.sql
+Enter password:
+ERROR 1265 (01000) at line 2: Data truncated for column 'id' at row 1
+root@ubuntu-test:~# mysql -h localhost -u root -p mydb -e "select * from demo"
+Enter password:
++------+
+| id   |
++------+
+|    1 |
++------+
+
+# 跳过错误语句，强制执行
+root@ubuntu-test:~# mysql -h localhost -u root -p mydb -f < data.sql
+Enter password:
+ERROR 1265 (01000) at line 2: Data truncated for column 'id' at row 1
+root@ubuntu-test:~# mysql -h localhost -u root -p mydb -e "select * from demo"
+Enter password:
++------+
+| id   |
++------+
+|    1 |
+|    1 |
+|    3 |
++------+
+
+# 查看完整的错误信息，定位出现错误的语句
+root@ubuntu-test:~# mysql -h localhost -u root -p mydb -f -v < data.sql
+Enter password:
+--------------
+insert into demo values(1)
+--------------
+
+--------------
+insert into demo values('2a')
+--------------
+
+ERROR 1265 (01000) at line 2: Data truncated for column 'id' at row 1
+--------------
+insert into demo values(3)
+--------------
+
+root@ubuntu-test:~# mysql -h localhost -u root -p mydb -e "select * from demo"
+Enter password:
++------+
+| id   |
++------+
+|    1 |
+|    1 |
+|    3 |
+|    1 |
+|    3 |
++------+
+
+# 准确制造一些 warnings
+root@ubuntu-test:~# vim data.sql
+root@ubuntu-test:~# cat data.sql
+insert into demo values(1);
+insert into demo values(222222222222222222);
+insert into demo values(3);
+# 将模式设置为非严格模式
+mysql> set global sql_mode = 'ANSI'
+
+# 非严格模式下，数据超过了上限，依然可以插入成功，但是这里看不到错误信息
+root@ubuntu-test:~# mysql -h localhost -u root -p mydb -f -v  < data.sql
+Enter password:
+--------------
+insert into demo values(1)
+--------------
+
+--------------
+insert into demo values(222222222222222222)
+--------------
+
+--------------
+insert into demo values(3)
+--------------
+
+root@ubuntu-test:~# mysql -h localhost -u root -p mydb -e "select * from demo"
+Enter password:
++------------+
+| id         |
++------------+
+|          1 |
+|          1 |
+|          3 |
+|          1 |
+|          3 |
+|          1 |
+| 2147483647 |
+|          3 |
++------------+
+
+# 显示警告信息
+root@ubuntu-test:~# mysql -h localhost -u root -p mydb -f -v --show-warnings  < data.sql
+Enter password:
+--------------
+insert into demo values(1)
+--------------
+
+--------------
+insert into demo values(222222222222222222)
+--------------
+
+Warning (Code 1264): Out of range value for column 'id' at row 1
+--------------
+insert into demo values(3)
+--------------
+```
