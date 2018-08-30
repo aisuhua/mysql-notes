@@ -4256,6 +4256,56 @@ mysql> select * from demo;
 
 ## InnoDB 行锁
 
+### 查看 InnoDB 行锁争用情况
+
+查看行锁的争用情况，其中 Innodb_row_lock_waits 和 Innodb_row_lock_time_avg 若比较高，则表示锁争用比较严重了。
+
+```sql
+mysql> show status like '%innodb_row_lock%';
++-------------------------------+--------+
+| Variable_name                 | Value  |
++-------------------------------+--------+
+| Innodb_row_lock_current_waits | 0      |
+| Innodb_row_lock_time          | 128930 |
+| Innodb_row_lock_time_avg      | 16116  |
+| Innodb_row_lock_time_max      | 51042  |
+| Innodb_row_lock_waits         | 8      |
++-------------------------------+--------+
+5 rows in set (0.00 sec)
+```
+
+查看锁发生在哪些表或数据行，以及每个锁的等待情况
+
+```sql
+# 这种方式已被标志为废弃
+mysql> select * from information_schema.innodb_locks\G
+Empty set, 1 warning (0.00 sec)
+
+mysql> select * from information_schema.innodb_lock_waits\G
+Empty set, 1 warning (0.01 sec)
+```
+
+使用 InnoDB Monitors 观察锁冲突的情况
+
+```sql
+mysql> show engine innodb status\G
+*************************** 1. row ***************************
+  Type: InnoDB
+  Name:
+Status:
+=====================================
+2018-08-28 22:34:47 0x7fb164223700 INNODB MONITOR OUTPUT
+=====================================
+Per second averages calculated from the last 51 seconds
+-----------------
+BACKGROUND THREAD
+-----------------
+srv_master_thread loops: 318 srv_active, 0 srv_shutdown, 112020 srv_idle
+srv_master_thread log flush and writes: 112304
+----------
+.....
+```
+
 - [14.5 InnoDB Locking and Transaction Model](https://dev.mysql.com/doc/refman/5.7/en/innodb-locking-transaction-model.html)
 - [14.5.2.1 Transaction Isolation Levels](https://dev.mysql.com/doc/refman/5.7/en/innodb-transaction-isolation-levels.html)
 - [server-system-variables.html#sysvar_transaction_isolation](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_transaction_isolation)
@@ -4269,7 +4319,28 @@ mysql> select * from demo;
 - [14.14 InnoDB Startup Options and System Variables](https://dev.mysql.com/doc/refman/5.7/en/innodb-parameters.html)
 - [5.1.7 Server System Variables](https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html)
 
+# 应用优化
+
+- 使用连接池
+- 减少对 MySQL 的访问
+    - 避免对同一数据做重复检索
+    - 使用查询缓存
+    - 增加应用 Cache 层
+- 负载均衡
+    - 利用 MySQL 复制分流查询操作（主从/主主）
+    - 采用分布式数据库架构
+
+参考
+
+- [8.10.3 The MySQL Query Cache](https://dev.mysql.com/doc/refman/5.7/en/query-cache.html)
+
+# MySQL 高级安装和升级
+
+- [Chapter 2 Installing and Upgrading MySQL](https://dev.mysql.com/doc/refman/5.7/en/installing.html)
+
 # MySQL 中的常用工具
+
+- [4.5 MySQL Client Programs](https://dev.mysql.com/doc/refman/5.7/en/programs-client.html)
 
 ## mysql 客户端连接工具
 
@@ -4552,3 +4623,4 @@ Warning (Code 1264): Out of range value for column 'id' at row 1
 insert into demo values(3)
 --------------
 ```
+
