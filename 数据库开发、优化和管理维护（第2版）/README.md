@@ -4740,6 +4740,8 @@ mysqlimport 是客户端数据导入工具，用来导入 mysqldump 加 -T 选�
 
 mysqlshow 客户端对象查找工具，用来很快地查找存在哪些数据库、数据库中的表、表中的列和索引。
 
+- [4.5.7 mysqlshow — Display Database, Table, and Column Information](https://dev.mysql.com/doc/refman/5.7/en/mysqlshow.html)
+
 mysql 客户端中的查看方法
 
 ```sql
@@ -4907,3 +4909,42 @@ Database: mydb  Table: demo
 mysql> show full columns from demo;
 mysql> show index from demo;
 ```
+
+### perror 错误代码查看工具
+
+perror 的作用是查看错误代码的详细含义
+
+```sh
+root@ubuntu-test:/www/web# perror 30 60
+OS error code  30:  Read-only file system
+OS error code  60:  Device not a stream
+```
+
+- [4.8.2 perror — Explain Error Codes](https://dev.mysql.com/doc/refman/5.7/en/perror.html)
+- [Appendix B Errors, Error Codes, and Common Problems](https://dev.mysql.com/doc/refman/5.7/en/error-handling.html)
+
+### replace 文本替换工具
+
+replace 是 MySQL 自带的一个对文件中的字符串进行替换的工具，类似 linux 下的 sed，不过它的使用更加简单灵活。
+
+```sh
+root@ubuntu-test:/www/web# cat text
+a1 a2 a3
+b1 b2 b3
+
+# 替换文件的内容，会覆盖原文件
+root@ubuntu-test:/www/web# replace a1 aa1 b2 bb2 -- text
+Warning: replace is deprecated and will be removed in a future version.
+text converted
+root@ubuntu-test:/www/web# cat text
+aa1 a2 a3
+b1 bb2 b3
+
+# 不覆盖原文件，而是将结果输出屏幕
+root@ubuntu-test:/www/web# replace aa1 a1 bb2 b2 < text
+Warning: replace is deprecated and will be removed in a future version.
+a1 a2 a3
+b1 b2 b3
+```
+
+- [4.8.3 replace — A String-Replacement Utility](https://dev.mysql.com/doc/refman/5.7/en/replace-utility.html)
