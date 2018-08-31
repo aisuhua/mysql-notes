@@ -4,7 +4,7 @@
 
 - [SQL history](https://en.wikipedia.org/wiki/SQL)
 - [MySQL history](https://en.wikipedia.org/wiki/MySQL)
-- [DBMS database management system](https://en.wikipedia.org/wiki/Database)
+- [DBMS history](https://en.wikipedia.org/wiki/Database)
 - [MySQL 5.7 Release Notes](https://dev.mysql.com/doc/relnotes/mysql/5.7/en/)
 - [MySQL 5.7 Reference Manual](https://dev.mysql.com/doc/refman/5.7/en/)
 - [MySQL Internals Manual](https://dev.mysql.com/doc/internals/en/)
