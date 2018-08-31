@@ -21,7 +21,7 @@
 - [MySQL技术内幕：InnoDB存储引擎（第2版）](https://book.douban.com/subject/24708143/)
 - [数据库索引设计与优化](https://book.douban.com/subject/26419771/)
 
-## Sites
+## Site
 
 - [Planet MySQL](https://planet.mysql.com/)
 - [MySQL Server Blog](http://mysqlserverteam.com/)
@@ -34,10 +34,10 @@
 - [迄今最安全的MySQL？细数5.7那些惊艳与鸡肋的新特性（上）](https://dbaplus.cn/news-11-493-1.html)
 - [迄今最安全的MySQL？细数5.7那些惊艳与鸡肋的新特性（中）](https://dbaplus.cn/news-11-671-1.html)
 
-## Resources
+## Resource
 
 - [awesome-mysql-cn](https://github.com/jobbole/awesome-mysql-cn)
 
-## Articles
+## Article
 
 - [MySQL DBA面试全揭秘](https://mp.weixin.qq.com/s?__biz=MjM5NzAzMTY4NQ==&mid=207595116&idx=1&sn=985fad3f55cb07cdf473eff97a3b9c8a&scene=21)
