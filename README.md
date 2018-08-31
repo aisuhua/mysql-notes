@@ -9,7 +9,7 @@
 - [MySQL 5.7 Reference Manual](https://dev.mysql.com/doc/refman/5.7/en/)
 - [MySQL Internals Manual](https://dev.mysql.com/doc/internals/en/)
 
-## Site
+## Sites
 
 - [Planet MySQL](https://planet.mysql.com/)
 - [MySQL Server Blog](http://mysqlserverteam.com/)
