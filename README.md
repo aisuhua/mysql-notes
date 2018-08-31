@@ -4,6 +4,7 @@
 
 - [SQL history](https://en.wikipedia.org/wiki/SQL)
 - [MySQL history](https://en.wikipedia.org/wiki/MySQL)
+- [DBMS](https://en.wikipedia.org/wiki/Database)
 - [MySQL 5.7 Release Notes](https://dev.mysql.com/doc/relnotes/mysql/5.7/en/)
 - [MySQL 5.7 Reference Manual](https://dev.mysql.com/doc/refman/5.7/en/)
 - [MySQL Internals Manual](https://dev.mysql.com/doc/internals/en/)
@@ -16,6 +17,7 @@
 - [高性能MySQL 第3版](https://book.douban.com/subject/23008813/)
 - [高可用MySQL 第2版](https://book.douban.com/subject/23008813/)
 - [MySQL排错指南](https://book.douban.com/subject/26591051/)
+- [MySQL运维内参：MySQL、Galera、Inception核心原理与最佳实践](https://book.douban.com/subject/27044364/)
 - [MySQL技术内幕：InnoDB存储引擎（第2版）](https://book.douban.com/subject/24708143/)
 - [数据库索引设计与优化](https://book.douban.com/subject/26419771/)
 
