@@ -4641,6 +4641,25 @@ mysqladmin 是一个执行管理操作的客户端程序。可以用它来检测
 
 由于服务器生成的二进制日志文件以二进制格式保存，所以如果想要检查这些文件的文本格式，就会用到 mysqlbinlog 日志管理工具。
 
+```sql
+# 只看指定数据库的 binlog 日志
+mysqlbinlog mysql-bin.000001 -d mydb
+
+# 查看被base64encode的语句内容
+mysqlbinlog mysql-bin.000001 -v
+
+# 将解析后的 binlog 日志内容输出到文件
+mysqlbinlog mysql-bin.000001 -r mybinlog
+
+# 不指定结束时间，则从开始时间读到结尾
+mysqlbinlog mysql-bin.000001 --start-datetime='2018-09-01 17:13:17'
+# 指定开始和结束时间
+mysqlbinlog mysql-bin.000001 --start-datetime='2018-09-01 17:13:17' --stop-datetime='2018-09-01 17:15:43'
+
+# 指定开始和结束位置
+mysqlbinlog mysql-bin.000001 --start-position=491 --stop-position=756
+```
+
 - [4.6.7 mysqlbinlog — Utility for Processing Binary Log Files](https://dev.mysql.com/doc/refman/5.7/en/mysqlbinlog.html)
 
 ### mysqlcheck 表维护工具
@@ -4948,3 +4967,12 @@ b1 b2 b3
 ```
 
 - [4.8.3 replace — A String-Replacement Utility](https://dev.mysql.com/doc/refman/5.7/en/replace-utility.html)
+
+# MySQL 日志
+
+- [5.4 MySQL Server Logs](https://dev.mysql.com/doc/refman/5.7/en/server-logs.html)
+- [5.4.4 The Binary Log](https://dev.mysql.com/doc/refman/5.7/en/binary-log.html)
+- [13.4.1.1 PURGE BINARY LOGS Syntax](https://dev.mysql.com/doc/refman/5.7/en/purge-binary-logs.html)
+- [16.1.6.4 Bi  nary Logging Options and Variables](https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html)
+- [5.4.5 The Slow Query Log](https://dev.mysql.com/doc/refman/5.7/en/slow-query-log.html)
+- [4.6.8 mysqldumpslow — Summarize Slow Query Log Files](https://dev.mysql.com/doc/refman/5.7/en/mysqldumpslow.html)
