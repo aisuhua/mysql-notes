@@ -4976,3 +4976,232 @@ b1 b2 b3
 - [16.1.6.4 Bi  nary Logging Options and Variables](https://dev.mysql.com/doc/refman/5.7/en/replication-options-binary-log.html)
 - [5.4.5 The Slow Query Log](https://dev.mysql.com/doc/refman/5.7/en/slow-query-log.html)
 - [4.6.8 mysqldumpslow — Summarize Slow Query Log Files](https://dev.mysql.com/doc/refman/5.7/en/mysqldumpslow.html)
+
+# 备份与恢复
+
+```
+# 导出表数据
+mysql> select * from demo into outfile '/tmp/mysql/demo.txt' fields terminated by ',' enclosed by '"';
+# 导入数据
+mysql> load data infile '/tmp/mysql/demo.txt' into table demo fields terminated by ',' optionally enclosed by '"';
+# 修改导入的值和指定列的顺序
+load data infile '/tmp/mysql/demo.txt' into table tmp fields terminated by ',' optionally enclosed by '"' (id, name) set id = id + 10;
+# 增加自定义的列值
+load data infile '/tmp/mysql/demo.txt' into table tmp fields terminated by ',' optionally enclosed by '"' (id, name, @content) set content = current_timestamp;
+
+# 导出表数据和结构
+shell> mysqldump -p mydb demo -T /tmp/mysql --fields-terminated-by ',' --fields-optionally-enclosed-by '"';
+
+# 导入数据，注意文件名即是表名，这里无需指定
+mysqlimport --fields-terminated-by=',' --fields-optionally-enclosed-by='"' -p mydb /tmp/mysql/demo.txt
+```
+
+错误处理
+
+```
+mysql> select * from demo into outfile '/tmp/suhua.txt';
+ERROR 1290 (HY000): The MySQL server is running with the --secure-file-priv option so it cannot execute this statement
+
+mysql> show variables like "%secure%";
++--------------------------+-----------------------+
+| Variable_name            | Value                 |
++--------------------------+-----------------------+
+| require_secure_transport | OFF                   |
+| secure_auth              | ON                    |
+| secure_file_priv         | /var/lib/mysql-files/ |
++--------------------------+-----------------------+
+3 rows in set (0.01 sec)
+
+# 修改 my.ini
+[mysqld]
+secure-file-priv=''
+
+# 重启
+service mysql restart
+
+mysql> show variables like "%secure%";
++--------------------------+-------+
+| Variable_name            | Value |
++--------------------------+-------+
+| require_secure_transport | OFF   |
+| secure_auth              | ON    |
+| secure_file_priv         |       |
++--------------------------+-------+
+3 rows in set (0.00 sec)
+
+mysql> select * from demo into outfile '/tmp/suhua.txt';
+Query OK, 2 rows affected (0.00 sec)
+```
+
+# MySQL 权限和安全
+
+```sql
+mysql> CREATE USER 'suhua'@'localhost' IDENTIFIED BY 'password';
+Query OK, 0 rows affected (0.06 sec)
+
+mysql> grant select on *.* to 'suhua'@'localhost';
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> select * from user where user = 'suhua' and host = 'localhost'\G
+*************************** 1. row ***************************
+                  Host: localhost
+                  User: suhua
+           Select_priv: Y
+           Insert_priv: N
+           Update_priv: N
+           Delete_priv: N
+
+mysql> select * from db where user = 'suhua' and host = 'localhost'\G
+Empty set (0.00 sec)
+
+mysql> revoke select on *.* from 'suhua'@'localhost';
+Query OK, 0 rows affected (0.02 sec)
+
+mysql> grant select on mydb.* to 'suhua'@'localhost';
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> select * from user where user = 'suhua' and host = 'localhost'\G
+*************************** 1. row ***************************
+                  Host: localhost
+                  User: suhua
+           Select_priv: N
+           Insert_priv: N
+           Update_priv: N
+           Delete_priv: N
+
+mysql> select * from db where user = 'suhua' and host = 'localhost'\G
+*************************** 1. row ***************************
+                 Host: localhost
+                   Db: mydb
+                 User: suhua
+          Select_priv: Y
+          Insert_priv: N
+          Update_priv: N
+          Delete_priv: N
+```
+
+查看权限
+
+```sql
+mysql> show grants for 'suhua'@'localhost'
+
+mysql> use information_schema;
+mysql> select * from SCHEMA_PRIVILEGES where GRANTEE = "'suhua'@'localhost'";
++---------------------+---------------+--------------+----------------+--------------+
+| GRANTEE             | TABLE_CATALOG | TABLE_SCHEMA | PRIVILEGE_TYPE | IS_GRANTABLE |
++---------------------+---------------+--------------+----------------+--------------+
+| 'suhua'@'localhost' | def           | mydb         | SELECT         | NO           |
++---------------------+---------------+--------------+----------------+--------------+
+1 row in set (0.00 sec)
+```
+
+修改密码
+
+```sql
+# 修改当前登陆用户的密码
+mysql> set password = '123456';
+Query OK, 0 rows affected (0.00 sec)
+
+# 修改用户密码
+mysql> set password for 'suhua'@'localhost' = '654321';
+Query OK, 0 rows affected (0.01 sec)
+
+# 使用 mysqladmin 修改用户密码
+root@ubuntu-test:/tmp/mysql# mysqladmin -h localhost -u suhua -p password
+Enter password:
+New password:
+Confirm new password:
+Warning: Since password will be sent to server in plain text, use ssl connection to ensure password safety.
+```
+
+帐号资源限制
+
+```sql
+# max_connections 并发连接数
+# max_user_connections 当前用户的最大并发连接数
+mysql> show variables like "%connection%";
++--------------------------+--------------------+
+| Variable_name            | Value              |
++--------------------------+--------------------+
+| character_set_connection | utf8mb4            |
+| collation_connection     | utf8mb4_general_ci |
+| max_connections          | 151                |
+| max_user_connections     | 0                  |
++--------------------------+--------------------+
+4 rows in set (0.00 sec)
+
+# 添加资源限制：每小时最多2次查询和5次更新
+# 可以在授权的时候同时指定
+mysql> alter user suhua@localhost with MAX_QUERIES_PER_HOUR 2 MAX_UPDATES_PER_HOUR 5;
+Query OK, 0 rows affected (0.06 sec)
+
+mysql> select user, host, max_questions, max_updates, max_connections, max_user_connections
+    -> from mysql.user where user = 'suhua' and host = 'localhost'\G;
+*************************** 1. row ***************************
+                user: suhua
+                host: localhost
+       max_questions: 2
+         max_updates: 5
+     max_connections: 0
+max_user_connections: 0
+1 row in set (0.00 sec)
+
+# 取消资源限制，设置为0即可
+mysql> alter user suhua@localhost with MAX_QUERIES_PER_HOUR 0 MAX_UPDATES_PER_HOUR 0;
+Query OK, 0 rows affected (0.00 sec)
+```
+
+将用户名和密码写在配置文件里面，连接的时候若不指定帐号密码，则使用该帐号密码。
+
+```
+[client]
+user=suhua
+password=123456
+
+使用 `mysql` 即可无需密码自动登陆
+```
+
+将本地的文件内容通过 load data local infile 导出到远程数据库。
+
+```
+mysql> show variables like "%local%";
++---------------+-------+
+| Variable_name | Value |
++---------------+-------+
+| local_infile  | ON    |
++---------------+-------+
+1 row in set (0.01 sec)
+
+#   可以将连接客户端的文件 load 到远程数据库服务器
+MySQL [study]> load data local infile '/etc/passwd' into table tmp;
+Query OK, 29 rows affected (0.03 sec)
+Records: 29  Deleted: 0  Skipped: 0  Warnings: 0
+```
+
+revoke 命令的漏洞
+
+```sql
+mysql> show grants for 'suhua'@'localhost';
++--------------------------------------------------+
+| Grants for suhua@localhost                       |
++--------------------------------------------------+
+| GRANT SELECT ON *.* TO 'suhua'@'localhost'       |
+| GRANT SELECT ON `study`.* TO 'suhua'@'localhost' |
++--------------------------------------------------+
+
+mysql> revoke all on *.* from suhua@localhost;
+Query OK, 0 rows affected (0.00 sec)
+
+# 对 study 库的权限依然没有去掉
+mysql> show grants for 'suhua'@'localhost';
++--------------------------------------------------+
+| Grants for suhua@localhost                       |
++--------------------------------------------------+
+| GRANT USAGE ON *.* TO 'suhua'@'localhost'        |
+| GRANT SELECT ON `study`.* TO 'suhua'@'localhost' |
++--------------------------------------------------+
+2 rows in set (0.00 sec)
+```
+
+- [13.7.1 Account Management Statements](https://dev.mysql.com/doc/refman/5.7/en/account-management-sql.html)
+- [13.7.6.3 FLUSH Syntax](https://dev.mysql.com/doc/refman/5.7/en/flush.html)
