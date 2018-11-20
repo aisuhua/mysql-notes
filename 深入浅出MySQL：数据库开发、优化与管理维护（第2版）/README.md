@@ -978,12 +978,16 @@ select * from information_schema.character_sets
 ```
 # 修改服务器字符集和校对规则
 [mysqld]
-character_set_server = utf8mb4
-collation_server = utf8mb4_unicode_ci
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+# https://dev.mysql.com/doc/refman/5.7/en/charset-applications.html
 
 # 修改连接字符集
 [mysql]
 default-character-set=utf8mb4
+
+# https://dev.mysql.com/doc/refman/5.7/en/charset-connection.html
 
 # 重启服务
 service mysql restart
